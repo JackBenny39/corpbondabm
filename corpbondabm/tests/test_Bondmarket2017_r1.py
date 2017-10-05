@@ -24,18 +24,23 @@ class TestTrader(unittest.TestCase):
         price1 = 100.24721536368058
         expected = {'Name': 'MM101', 'Nominal': 500, 'Maturity': 1, 'Coupon': .0175, 'Yield': .015, 'Price': price1}
         self.assertDictEqual(self.bondmarket.bonds[0], expected)
+        self.assertEqual(self.bondmarket.last_prices['MM101'], price1)
         price2 = 101.46775304752784
         expected = {'Name': 'MM102', 'Nominal': 500, 'Maturity': 2, 'Coupon': .025, 'Yield': .0175, 'Price': price2}
         self.assertDictEqual(self.bondmarket.bonds[1], expected)
+        self.assertEqual(self.bondmarket.last_prices['MM102'], price2)
         price3 = 98.83180926153969
         expected = {'Name': 'MM103', 'Nominal': 1000, 'Maturity': 5, 'Coupon': .0225, 'Yield': .025, 'Price': price3}
         self.assertDictEqual(self.bondmarket.bonds[2], expected)
-        price4 = 98.24880431930487
+        self.assertEqual(self.bondmarket.last_prices['MM103'], price3)
+        price4 = 98.24880431930488
         expected = {'Name': 'MM104', 'Nominal': 2000, 'Maturity': 10, 'Coupon': .024, 'Yield': .026, 'Price': price4}
         self.assertDictEqual(self.bondmarket.bonds[3], expected)
+        self.assertEqual(self.bondmarket.last_prices['MM104'], price4)
         price5 = 96.7721765936335
         expected = {'Name': 'MM105', 'Nominal': 1000, 'Maturity': 25, 'Coupon': .04, 'Yield': .0421, 'Price': price5}
         self.assertDictEqual(self.bondmarket.bonds[4], expected)
+        self.assertEqual(self.bondmarket.last_prices['MM105'], price5)
         
     def test_compute_weights_from_price(self):
         weights = list(np.round(self.bondmarket.compute_weights_from_price(),2))
@@ -46,5 +51,12 @@ class TestTrader(unittest.TestCase):
         weights = self.bondmarket.compute_weights_from_nominal()
         expected = {'MM101': 0.1, 'MM102': 0.1, 'MM103': 0.2, 'MM104': 0.4, 'MM105': 0.2}
         self.assertDictEqual(weights, expected)
+        
+    def test_record_trades(self):
+        self.assertFalse(self.bondmarket.trades)
+        trade_report = {'time': 1, 'name': 'MM103', 'price': 99.95, 'size': 20, 'seller': 'd1', 'buyer': 'm1'}
+        self.bondmarket.record_trades(trade_report)
+        self.assertDictEqual(self.bondmarket.trades, {1: trade_report})
+        self.assertEqual(self.bondmarket.last_prices['MM103'], 99.95)
         
         
