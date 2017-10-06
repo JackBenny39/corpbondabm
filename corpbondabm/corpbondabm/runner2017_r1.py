@@ -20,16 +20,18 @@ class Runner(object):
         return bondmarket
     
     def make_mutual_fund(self, name, share, ll, ul, target):
-        m1 = MutualFund(name, ll, ul, target)
+        nominal_weights = self.bondmarket.compute_weights_from_nominal()
+        bond_list = []
+        portfolio = {}
         for bond in self.bondmarket.bonds:
-            m1.bond_list.append(bond['Name'])
+            bond_list.append(bond['Name'])
             mm_bond = {'Name': bond['Name'], 'Nominal': share*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
-            m1.portfolio[bond['Name']] = mm_bond
+            portfolio[bond['Name']] = mm_bond
+        m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights)
         prices = {k:m1.portfolio[k]['Price'] for k in m1.bond_list}
         bond_value = m1.compute_portfolio_value(prices)
         m1.cash = target*bond_value/(1-target)
-        m1.index_weights = self.bondmarket.compute_weights_from_nominal()
         m1.add_nav_to_history(0, prices)
         return m1
         
@@ -48,4 +50,4 @@ if __name__ == '__main__':
     
     market1 = Runner(mm_share=mm_share)
     print(market1.mutualfund.index_weights)
-    print(market1.mutualfund.cash)
+    print(market1.mutualfund.index_weight_array)
