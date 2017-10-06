@@ -90,8 +90,7 @@ class TestTrader(unittest.TestCase):
         
     def test_make_portfolio_decision(self):
         # Sell some: index decline, low on cash
-        #prices = {'MM101': 101, 'MM102': 98, 'MM103': 95, 'MM104': 105, 'MM105': 100}
-        prices = {'MM101': 100, 'MM102': 100, 'MM103': 100, 'MM104': 100, 'MM105': 100}
+        prices = {'MM101': 101, 'MM102': 98, 'MM103': 95, 'MM104': 105, 'MM105': 100}
         self.m1.nav_history[1] = 750
         self.m1.nav_history[5] = 750
         self.m1.nav_history[6] = 737.5
@@ -102,9 +101,15 @@ class TestTrader(unittest.TestCase):
         self.m1.portfolio['MM104']['Nominal'] = 285
         self.m1.portfolio['MM105']['Nominal'] = 137.5
         self.m1.make_portfolio_decision(7, prices)
-        #self.assertDictEqual(self.m1.rfq_collector[0], {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 1})
-        #self.assertDictEqual(self.m1.rfq_collector[1], {'order_id': 'm1_2', 'name': 'MM103', 'side': 'sell', 'amount': 2})
-        #print(self.m1.rfq_collector)
+        expected = [
+                    {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 2.0},
+                    {'order_id': 'm1_2', 'name': 'MM102', 'side': 'sell', 'amount': 2.0},
+                    {'order_id': 'm1_3', 'name': 'MM103', 'side': 'sell', 'amount': 4.0},
+                    {'order_id': 'm1_4', 'name': 'MM104', 'side': 'sell', 'amount': 4.0}
+                    ]
+        for i in range(len(self.m1.rfq_collector)):
+            with self.subTest(i=i):
+                self.assertDictEqual(self.m1.rfq_collector[i], expected[i])
         
         self.m1.nav_history[1] = 750
         self.m1.nav_history[5] = 750
@@ -117,7 +122,7 @@ class TestTrader(unittest.TestCase):
         self.m1.portfolio['MM105']['Nominal'] = 140
         
         
-        print(self.m1.rfq_collector)
+        
         
         
     def test_repr_InsuranceCo(self):

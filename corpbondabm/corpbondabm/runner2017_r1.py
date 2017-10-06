@@ -49,5 +49,8 @@ if __name__ == '__main__':
     #mm_target = 0.05
     
     market1 = Runner(mm_share=mm_share)
-    print(market1.mutualfund.index_weights)
-    print(market1.mutualfund.index_weight_array)
+    print(market1.bondmarket.bonds[0])
+    print(market1.mutualfund.portfolio['MM101'])
+    market1.bondmarket.bonds[0]['Price']=100
+    print(market1.bondmarket.bonds[0])
+    print(market1.mutualfund.portfolio['MM101'])

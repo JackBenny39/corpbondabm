@@ -110,16 +110,13 @@ class MutualFund(BuySide):
         2. Selling cannot
         '''
         self.rfq_collector.clear()
-        print(self.rfq_collector)
         nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
-        
         prices = np.array([prices[x]/100 for x in self.bond_list])
         last_nav = self.nav_history[step-1]
         expected_cash_pct = (self.cash + self.compute_flow(step))/last_nav
         if expected_cash_pct < self.lower_bound:
             side = 'sell'
             target_sell_amount = self.target*last_nav - self.cash
-            print(target_sell_amount)
             target_nominal_value = np.sum(nominals) - target_sell_amount
             target_nominals = self.index_weight_array * target_nominal_value
             diffs = target_nominals - nominals
