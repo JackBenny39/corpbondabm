@@ -3,7 +3,7 @@ import numpy as np
 
 ALPHA = 0.00017
 BETA_D = 0.56
-BETA_D1 = -.0002
+BETA_D1 = -0.0002
 BETA_W = 0.6
 BETA_W1 = -0.0002
 
@@ -110,31 +110,36 @@ class MutualFund(BuySide):
         2. Selling cannot
         '''
         self.rfq_collector.clear()
-        nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
-        prices = np.array([prices[x]/100 for x in self.bond_list])
         last_nav = self.nav_history[step-1]
-        expected_cash_pct = (self.cash + self.compute_flow(step))/last_nav
-        if expected_cash_pct < self.lower_bound:
-            side = 'sell'
-            target_sell_amount = self.target*last_nav - self.cash
-            target_nominal_value = np.sum(nominals) - target_sell_amount
+        expected_cash = self.compute_flow(step)
+        expected_cash_pct = (self.cash + expected_cash)/(last_nav + expected_cash)
+        if expected_cash_pct < self.lower_bound or expected_cash_pct > self.upper_bound:
+            nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
+            prices = np.array([prices[x]/100 for x in self.bond_list])
+            expected_nav = last_nav + expected_cash
+            target_nominal_value = (1 - self.target)*expected_nav
             target_nominals = self.index_weight_array * target_nominal_value
             diffs = target_nominals - nominals
-            expected_sell_amounts = diffs*prices
-            expected_sell_sum = np.abs(np.sum(expected_sell_amounts[expected_sell_amounts<0]))
-            ratio = target_sell_amount/expected_sell_sum
-            final_sizes = ratio*diffs
-            for i,bond in enumerate(self.bond_list):
-                if final_sizes[i] <= -1.0:
-                    self.make_rfq(bond, side, np.abs(np.round(final_sizes[i],0)))
-        
-        #elif expected_cash_pct > self.upper_bound:
-            #side = 'buy'
-            #buy_amount = (expected_cash_pct - self.target)*last_nav
-            #for bond in self.bond_list:
-                #amount = self.index_weights[bond]*buy_amount
-                #if amount >= 1:
-                    #self.make_rfq(bond, side, int(amount))
+            expected_amounts = diffs*prices
+            if expected_cash_pct < self.lower_bound:
+                side = 'sell'
+                target_sell_amount = self.target*expected_nav - self.cash
+                expected_sell_sum = np.abs(np.sum(expected_amounts[expected_amounts<0]))
+                ratio = target_sell_amount/expected_sell_sum
+                final_sizes = ratio*diffs
+                for i,bond in enumerate(self.bond_list):
+                    if final_sizes[i] <= -1.0:
+                        self.make_rfq(bond, side, np.abs(np.round(final_sizes[i],0)))
+            elif expected_cash_pct > self.upper_bound:
+                side = 'buy'
+                target_buy_amount = (self.cash + expected_cash) - self.target*expected_nav
+                expected_buy_sum = np.abs(np.sum(expected_amounts[expected_amounts>0]))
+                ratio = target_buy_amount/expected_buy_sum
+                final_sizes = ratio*diffs
+                for i,bond in enumerate(self.bond_list):
+                    if final_sizes[i] >= 1.0:
+                        self.make_rfq(bond, side, np.abs(np.round(final_sizes[i],0)))
+ 
         
     
     
