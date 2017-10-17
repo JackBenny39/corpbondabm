@@ -15,18 +15,31 @@ class BuySide(object):
     base class for buy side traders
     '''
     
-    def __init__(self, name):
+    def __init__(self, name, bond_list, portfolio):
         '''
         Initialize BuySide with some base class attributes and a method
         
         rfq is a public container for carrying price quote requests to the sell side
         '''
         self._trader_id = name # trader id
+        self.bond_list = bond_list
+        self.portfolio = portfolio
         self.rfq_collector = []
         self._rfq_sequence = 0
         
     def __repr__(self):
         return 'BuySide({0})'.format(self._trader_id)
+    
+    def make_rfq(self, name, side, amount):
+        self._rfq_sequence += 1
+        order_id = '%s_%d' % (self._trader_id, self._rfq_sequence)
+        rfq =  {'order_id': order_id, 'name': name, 'side': side, 'amount': amount}
+        self.rfq_collector.append(rfq)
+        
+    def compute_portfolio_value(self, prices):
+        bond_values = [self.portfolio[x]['Nominal']*prices[x]/100 for x in self.bond_list]
+        return np.sum(bond_values)
+    
     
     
 class MutualFund(BuySide):
@@ -41,13 +54,11 @@ class MutualFund(BuySide):
         
         
         '''
-        BuySide.__init__(self, name)
+        BuySide.__init__(self, name, bond_list, portfolio)
         self.trader_type = 'MutualFund'
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
         self.target = target
-        self.bond_list = bond_list
-        self.portfolio = portfolio
         self.nav_history = {}
         self.cash = 0
         self.index_weights = weights
@@ -65,10 +76,6 @@ class MutualFund(BuySide):
         weights = nominals/nominal_value
         return dict(zip(self.bond_list, weights))
     
-    def compute_portfolio_value(self, prices):
-        bond_values = [self.portfolio[x]['Nominal']*prices[x]/100 for x in self.bond_list]
-        return np.sum(bond_values)
-    
     def add_nav_to_history(self, step, prices):
         nav = self.compute_portfolio_value(prices) + self.cash
         self.nav_history[step] = nav
@@ -80,12 +87,6 @@ class MutualFund(BuySide):
         flow_ratio = ALPHA + (BETA_D + BETA_D1*(retdaily_lag1<0))*retdaily_lag1 + (BETA_W + BETA_W1*(retweekly_lag1<0))*retweekly_lag1
         return flow_ratio*wealth_lag1
     
-    def make_rfq(self, name, side, amount):
-        self._rfq_sequence += 1
-        order_id = '%s_%d' % (self._trader_id, self._rfq_sequence)
-        rfq =  {'order_id': order_id, 'name': name, 'side': side, 'amount': amount}
-        self.rfq_collector.append(rfq)
-        
     def modify_portfolio(self, confirm):
         bond = confirm['name']
         if confirm['side'] == 'buy':
@@ -115,12 +116,12 @@ class MutualFund(BuySide):
         expected_cash_pct = (self.cash + expected_cash)/(last_nav + expected_cash)
         if expected_cash_pct < self.lower_bound or expected_cash_pct > self.upper_bound:
             nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
-            prices = np.array([prices[x]/100 for x in self.bond_list])
+            xprices = np.array([prices[x]/100 for x in self.bond_list])
             expected_nav = last_nav + expected_cash
             target_nominal_value = (1 - self.target)*expected_nav
             target_nominals = self.index_weight_array * target_nominal_value
             diffs = target_nominals - nominals
-            expected_amounts = diffs*prices
+            expected_amounts = diffs*xprices
             if expected_cash_pct < self.lower_bound:
                 side = 'sell'
                 target_sell_amount = self.target*expected_nav - self.cash
@@ -149,17 +150,50 @@ class InsuranceCo(BuySide):
         
         
     '''
-    def __init__(self, name):
+    def __init__(self, name, bond_weight_target, bond_list, portfolio):
         '''
         Initialize InsuranceCo
         
         
         '''
-        BuySide.__init__(self, name)
+        BuySide.__init__(self, name, bond_list, portfolio)
         self.trader_type = 'InsuranceCo'
+        self.equity = 0
+        self.bond_weight_target = bond_weight_target
         
     def __repr__(self):
         return 'BuySide({0}, {1})'.format(self._trader_id, self.trader_type)
+    
+    def modify_portfolio(self, confirm):
+        bond = confirm['name']
+        if confirm['side'] == 'buy':
+            self.portfolio[bond]['Nominal'] += confirm['size']
+            self.equity -= confirm['size']*confirm['price']
+        else:
+            self.portfolio[bond]['Nominal'] -= confirm['size']
+            self.equity += confirm['size']*confirm['price']
+    
+    def make_portfolio_decision(self, prices, equity_return):
+        '''
+        The InsuranceCo needs to know:
+        1. Bond portfolio value
+        2. Equity portfolio value
+        
+        And then:
+        1. Randomly buys/sells bonds to re-weight
+        '''
+        self.rfq_collector.clear()
+        self.equity *= (1+equity_return)
+        nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
+        xprices = np.array([prices[x]/100 for x in self.bond_list])
+        bond_value = np.sum(nominals*xprices)
+        portfolio_value = self.equity+bond_value
+        bond_diff = bond_value - self.bond_weight_target*portfolio_value
+        if np.abs(bond_diff) >= 1.0:
+            side = 'sell' if bond_diff >= 1.0 else 'buy'
+            bond = self.bond_list[np.random.randint(0, len(self.bond_list))]
+            bond_price = prices[bond]/100
+            self.make_rfq(bond, side, np.abs(np.round(bond_diff/bond_price,0)))
     
     
 class HedgeFund(BuySide):
@@ -168,13 +202,13 @@ class HedgeFund(BuySide):
         
         
     '''
-    def __init__(self, name):
+    def __init__(self, name, bond_list, portfolio):
         '''
         Initialize HedgeFund
         
         
         '''
-        BuySide.__init__(self, name)
+        BuySide.__init__(self, name, bond_list, portfolio)
         self.trader_type = 'HedgeFund'
         
     def __repr__(self):
