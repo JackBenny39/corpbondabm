@@ -5,7 +5,7 @@ import numpy as np
 from corpbondabm.bondmarket2017_r1 import BondMarket
 
 
-class TestTrader(unittest.TestCase):
+class TestBondmarket(unittest.TestCase):
 
 
     def setUp(self):
