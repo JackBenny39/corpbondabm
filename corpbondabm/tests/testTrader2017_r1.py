@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from corpbondabm.trader2017_r1 import BuySide, MutualFund, InsuranceCo, HedgeFund
+from corpbondabm.trader2017_r1 import BuySide, MutualFund, InsuranceCo, HedgeFund, Dealer
 from corpbondabm.bondmarket2017_r1 import BondMarket
 
 MM_FRACTION = 0.15
@@ -23,14 +23,17 @@ class TestTrader(unittest.TestCase):
         bond_list = []
         mm_portfolio = {}
         ic_portfolio = {}
+        d_portfolio = {}
         for bond in self.bondmarket.bonds:
             mm_bond = {'Name': bond['Name'], 'Nominal': MM_FRACTION*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             ic_bond = {'Name': bond['Name'], 'Nominal': (1-MM_FRACTION)*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
+            d_bond = {'Name': bond['Name'], 'Nominal': bond['Nominal'], 'Price': bond['Price']}
             bond_list.append(bond['Name'])
             mm_portfolio[bond['Name']] = mm_bond
             ic_portfolio[bond['Name']] = ic_bond
+            d_portfolio[bond['Name']] = d_bond
             
         self.b1 = BuySide('b1', bond_list, mm_portfolio)
             
@@ -46,6 +49,8 @@ class TestTrader(unittest.TestCase):
         self.i1.equity = IC_EQUITY*bond_value/(1-IC_EQUITY)
         
         self.h1 = HedgeFund('h1', bond_list, mm_portfolio) # use MF portfolio for now
+        
+        self.d1 = Dealer('d1', bond_list, d_portfolio, 0.1, 0.075)
         
         
     def test_repr_BuySide(self):
@@ -179,3 +184,16 @@ class TestTrader(unittest.TestCase):
    
     def test_repr_HedgeFund(self):
         self.assertEqual('BuySide(h1, HedgeFund)', '{0}'.format(self.h1))
+        
+        
+    def test_repr_Dealer(self):
+        self.assertEqual('Dealer(d1, Dealer)', '{0}'.format(self.d1))
+        
+    def test_update_limits(self):
+        expected = {'MM101': {'Name': 'MM101', 'Nominal': 500, 'LowerLimit': -37.5, 'UpperLimit': 50.0, 'Quantity': 0}, 
+                    'MM102': {'Name': 'MM102', 'Nominal': 500, 'LowerLimit': -37.5, 'UpperLimit': 50.0, 'Quantity': 0}, 
+                    'MM103': {'Name': 'MM103', 'Nominal': 1000, 'LowerLimit': -75.0, 'UpperLimit': 100.0, 'Quantity': 0}, 
+                    'MM104': {'Name': 'MM104', 'Nominal': 2000, 'LowerLimit': -150.0, 'UpperLimit': 200.0, 'Quantity': 0}, 
+                    'MM105': {'Name': 'MM105', 'Nominal': 1000, 'LowerLimit': -75.0, 'UpperLimit': 100.0, 'Quantity': 0}}
+        self.assertDictEqual(self.d1.portfolio, expected)
+        

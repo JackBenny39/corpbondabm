@@ -184,9 +184,7 @@ class InsuranceCo(BuySide):
         '''
         self.rfq_collector.clear()
         self.equity *= (1+equity_return)
-        nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
-        xprices = np.array([prices[x]/100 for x in self.bond_list])
-        bond_value = np.sum(nominals*xprices)
+        bond_value = self.compute_portfolio_value(prices)
         portfolio_value = self.equity+bond_value
         bond_diff = bond_value - self.bond_weight_target*portfolio_value
         if np.abs(bond_diff) >= 1.0:
@@ -213,3 +211,52 @@ class HedgeFund(BuySide):
         
     def __repr__(self):
         return 'BuySide({0}, {1})'.format(self._trader_id, self.trader_type)
+    
+    
+class Dealer(object):
+    '''
+    Dealer
+    
+    Dealer receives rfqs and quotes prices similar to Treynor (FAJ, 1987):
+    1. The active side of the quote is a function of expected inventory and 
+       the outside spread
+    2. The passive side of the quote is a fixed spread related to average trade size
+       outside spread and inventory range
+    '''
+    
+    def __init__(self, name, bond_list, portfolio, long_limit, short_limit):
+        '''
+        Initialize Dealer with some base class attributes and a method
+        
+        
+        '''
+        self._trader_id = name # trader id
+        self.trader_type = 'Dealer'
+        self.bond_list = bond_list
+        self.portfolio = portfolio
+        self.update_limits(long_limit, short_limit)
+        
+    def __repr__(self):
+        return 'Dealer({0}, {1})'.format(self._trader_id, self.trader_type)
+    
+    def update_limits(self, long, short):
+        for bond in self.bond_list:
+            self.portfolio[bond]['LowerLimit'] = -self.portfolio[bond]['Nominal']*short
+            self.portfolio[bond]['UpperLimit'] = self.portfolio[bond]['Nominal']*long
+            self.portfolio[bond]['Quantity'] = 0
+            
+    def update_price(self, prices):
+        pass
+            
+    def make_quote(self, rfq):
+        # if incoming order to sell, dealer buys and increases inventory
+        size = rfq['amount'] if rfq['side'] == 'sell' else -rfq['amount']
+        expected_inventory = self.portfolio[rfq['name']]['Quantity'] + size
+        if expected_inventory < 0:
+            scale = (expected_inventory/self.portfolio[rfq['name']]['LowerLimit'])*(1 - self.portfolio[rfq['name']]['Specialization']/10)
+        #rfq =  {'order_id': order_id, 'name': name, 'side': side, 'amount': amount}
+            
+    
+    
+    
+    
