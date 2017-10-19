@@ -224,7 +224,7 @@ class Dealer(object):
        outside spread and inventory range
     '''
     
-    def __init__(self, name, bond_list, portfolio, long_limit, short_limit):
+    def __init__(self, name, bond_list, portfolio, long_limit, short_limit, bounds):
         '''
         Initialize Dealer with some base class attributes and a method
         
@@ -234,6 +234,8 @@ class Dealer(object):
         self.trader_type = 'Dealer'
         self.bond_list = bond_list
         self.portfolio = portfolio
+        self.lower_bound = bounds[0]
+        self.upper_bound = bounds[1]
         self.update_limits(long_limit, short_limit)
         
     def __repr__(self):
@@ -249,12 +251,42 @@ class Dealer(object):
         pass
             
     def make_quote(self, rfq):
+        order_id = rfq['order_id']
+        bond = rfq['name']
+        side = rfq['side']
+        amount = rfq['amount']
+        lower_limit = self.portfolio[bond]['LowerLimit']
+        upper_limit = self.portfolio[bond]['UpperLimit']
+        bond_price = self.portfolio[bond]['Price']
+        outside_spread = (self.upper_bound + self.lower_bound)*bond_price
+        inventory_range = upper_limit - lower_limit
+        inside_spread = 10*outside_spread/inventory_range
         # if incoming order to sell, dealer buys and increases inventory
-        size = rfq['amount'] if rfq['side'] == 'sell' else -rfq['amount']
-        expected_inventory = self.portfolio[rfq['name']]['Quantity'] + size
-        if expected_inventory < 0:
-            scale = (expected_inventory/self.portfolio[rfq['name']]['LowerLimit'])*(1 - self.portfolio[rfq['name']]['Specialization']/10)
-        #rfq =  {'order_id': order_id, 'name': name, 'side': side, 'amount': amount}
+        size = amount if side == 'sell' else -amount
+        expected_inventory = self.portfolio[bond]['Quantity'] + size
+        if lower_limit <= expected_inventory <= upper_limit:
+            specialization = 1 - self.portfolio[bond]['Specialization']/10
+            if expected_inventory < 0:
+                scale = (expected_inventory/lower_limit)*specialization
+                ask_price = (1 + scale*self.upper_bound)*bond_price
+                bid_price = ask_price - inside_spread
+                price = bid_price if side == 'sell' else ask_price
+                quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
+            elif expected_inventory > 0:
+                scale = (expected_inventory/upper_limit)*specialization
+                bid_price = (1 - scale*self.lower_bound)*bond_price
+                ask_price = bid_price + inside_spread
+                price = bid_price if side == 'sell' else ask_price
+                quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
+            elif expected_inventory == 0:
+                half_spread = inside_spread/2
+                bid_price = bond_price - half_spread
+                ask_price = bond_price + half_spread
+                price = bid_price if side == 'sell' else ask_price
+                quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
+        else:
+            quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': None, 'side': side, 'price': None}
+        return quote
             
     
     

@@ -7,6 +7,7 @@ from corpbondabm.bondmarket2017_r1 import BondMarket
 
 MM_FRACTION = 0.15
 IC_EQUITY = 0.4
+TREYNOR_BOUNDS = [0.01, 0.0125]
 
 
 class TestTrader(unittest.TestCase):
@@ -24,12 +25,13 @@ class TestTrader(unittest.TestCase):
         mm_portfolio = {}
         ic_portfolio = {}
         d_portfolio = {}
+        d_special = {'MM101': 0.9, 'MM102': 0.9, 'MM103': 0.75, 'MM104': 0.5, 'MM105': 0.5}
         for bond in self.bondmarket.bonds:
             mm_bond = {'Name': bond['Name'], 'Nominal': MM_FRACTION*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             ic_bond = {'Name': bond['Name'], 'Nominal': (1-MM_FRACTION)*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
-            d_bond = {'Name': bond['Name'], 'Nominal': bond['Nominal'], 'Price': bond['Price']}
+            d_bond = {'Name': bond['Name'], 'Nominal': bond['Nominal'], 'Price': bond['Price'], 'Specialization': d_special[bond['Name']]}
             bond_list.append(bond['Name'])
             mm_portfolio[bond['Name']] = mm_bond
             ic_portfolio[bond['Name']] = ic_bond
@@ -50,7 +52,7 @@ class TestTrader(unittest.TestCase):
         
         self.h1 = HedgeFund('h1', bond_list, mm_portfolio) # use MF portfolio for now
         
-        self.d1 = Dealer('d1', bond_list, d_portfolio, 0.1, 0.075)
+        self.d1 = Dealer('d1', bond_list, d_portfolio, 0.1, 0.075, TREYNOR_BOUNDS)
         
         
     def test_repr_BuySide(self):
@@ -190,10 +192,96 @@ class TestTrader(unittest.TestCase):
         self.assertEqual('Dealer(d1, Dealer)', '{0}'.format(self.d1))
         
     def test_update_limits(self):
-        expected = {'MM101': {'Name': 'MM101', 'Nominal': 500, 'LowerLimit': -37.5, 'UpperLimit': 50.0, 'Quantity': 0}, 
-                    'MM102': {'Name': 'MM102', 'Nominal': 500, 'LowerLimit': -37.5, 'UpperLimit': 50.0, 'Quantity': 0}, 
-                    'MM103': {'Name': 'MM103', 'Nominal': 1000, 'LowerLimit': -75.0, 'UpperLimit': 100.0, 'Quantity': 0}, 
-                    'MM104': {'Name': 'MM104', 'Nominal': 2000, 'LowerLimit': -150.0, 'UpperLimit': 200.0, 'Quantity': 0}, 
-                    'MM105': {'Name': 'MM105', 'Nominal': 1000, 'LowerLimit': -75.0, 'UpperLimit': 100.0, 'Quantity': 0}}
+        expected = {'MM101': {'Name': 'MM101', 'Nominal': 500, 'Price': 100.24721536368058, 'Specialization': 0.9, 'LowerLimit': -37.5, 'UpperLimit': 50.0, 'Quantity': 0}, 
+                    'MM102': {'Name': 'MM102', 'Nominal': 500, 'Price': 101.46775304752784, 'Specialization': 0.9, 'LowerLimit': -37.5, 'UpperLimit': 50.0, 'Quantity': 0}, 
+                    'MM103': {'Name': 'MM103', 'Nominal': 1000, 'Price': 98.83180926153969, 'Specialization': 0.75, 'LowerLimit': -75.0, 'UpperLimit': 100.0, 'Quantity': 0}, 
+                    'MM104': {'Name': 'MM104', 'Nominal': 2000, 'Price': 98.24880431930488, 'Specialization': 0.5, 'LowerLimit': -150.0, 'UpperLimit': 200.0, 'Quantity': 0}, 
+                    'MM105': {'Name': 'MM105', 'Nominal': 1000, 'Price': 96.7721765936335, 'Specialization': 0.5, 'LowerLimit': -75.0, 'UpperLimit': 100.0, 'Quantity': 0}}
         self.assertDictEqual(self.d1.portfolio, expected)
+        
+    def test_make_quote(self):
+        '''
+        There are 6 possibilities:
+        1. rfq size results in a breach of the inventory limit (2 ways to do this)
+        2. rfq is a buy (dealer quotes ask price) that results in positive inventory: bid set to scale, ask set by a fixed spread
+        3. rfq is a buy (dealer quotes ask price) that results in negative inventory: ask set to scale
+        4. rfq is a sell (dealer quotes bid price) that results in positive inventory: bid set to scale
+        5. rfq is a sell  (dealer quotes bid price) that results in negative inventory: ask set to scale, bid set by a fixed spread
+        6. rfq results in flat (zero) inventory: bid and ask set at a fixed symmetric spread around last trade price
+        
+        '''
+        #1a: breach upper limit
+        self.d1.portfolio['MM101']['Quantity'] = 48
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 5}
+        quote = self.d1.make_quote(rfq)
+        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': None, 'side': 'sell', 'price': None}
+        self.assertDictEqual(quote, expected)
+        #1b: breach lower limit
+        self.d1.portfolio['MM101']['Quantity'] = -35
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'buy', 'amount': 5}
+        quote = self.d1.make_quote(rfq)
+        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': None, 'side': 'buy', 'price': None}
+        self.assertDictEqual(quote, expected)
+        #2
+        self.d1.portfolio['MM101']['Quantity'] = 20
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'buy', 'amount': 5}
+        quote = self.d1.make_quote(rfq)
+        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'buy', 'price': 100.23131901953005}
+        self.assertDictEqual(quote, expected)
+        #3
+        self.d1.portfolio['MM101']['Quantity'] = -10
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'buy', 'amount': 5}
+        quote = self.d1.make_quote(rfq)
+        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'buy', 'price': 100.70334019358533}
+        self.assertDictEqual(quote, expected)
+        #4
+        self.d1.portfolio['MM101']['Quantity'] = 20
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 5}
+        quote = self.d1.make_quote(rfq)
+        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'sell', 'price': 99.79109053377583}
+        self.assertDictEqual(quote, expected)
+        #5
+        self.d1.portfolio['MM101']['Quantity'] = -10
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 5}
+        quote = self.d1.make_quote(rfq)
+        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'sell', 'price': 100.1414784198565}
+        self.assertDictEqual(quote, expected)
+        #6
+        self.d1.portfolio['MM101']['Quantity'] = -5
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 5}
+        quote = self.d1.make_quote(rfq)
+        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'sell', 'price': 100.11832608678442}
+        self.assertDictEqual(quote, expected)
+        self.d1.portfolio['MM101']['Quantity'] = 5
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'buy', 'amount': 5}
+        quote = self.d1.make_quote(rfq)
+        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'buy', 'price': 100.37610464057674}
+        self.assertDictEqual(quote, expected)
+        # And finally, prices should fall with rising inventory
+        self.d1.portfolio['MM101']['Quantity'] = -30
+        rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 10}
+        quote1 = self.d1.make_quote(rfq)
+        price1 = quote1['price']
+        self.d1.portfolio['MM101']['Quantity'] = -20
+        rfq =  {'order_id': 'm1_2', 'name': 'MM101', 'side': 'sell', 'amount': 10}
+        quote2 = self.d1.make_quote(rfq)
+        price2 = quote2['price']
+        self.assertLess(price2, price1)
+        self.d1.portfolio['MM101']['Quantity'] = -10
+        rfq =  {'order_id': 'm1_3', 'name': 'MM101', 'side': 'sell', 'amount': 10}
+        quote3 = self.d1.make_quote(rfq)
+        price3 = quote3['price']
+        self.assertLess(price3, price2)
+        self.d1.portfolio['MM101']['Quantity'] = 0
+        rfq =  {'order_id': 'm1_4', 'name': 'MM101', 'side': 'sell', 'amount': 10}
+        quote4 = self.d1.make_quote(rfq)
+        price4 = quote4['price']
+        self.assertLess(price4, price3)
+        self.d1.portfolio['MM101']['Quantity'] = 10
+        rfq =  {'order_id': 'm1_4', 'name': 'MM101', 'side': 'sell', 'amount': 20}
+        quote5 = self.d1.make_quote(rfq)
+        price5 = quote5['price']
+        self.assertLess(price5, price4)
+
+        
         
