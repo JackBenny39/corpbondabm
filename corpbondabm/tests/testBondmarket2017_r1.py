@@ -52,11 +52,45 @@ class TestBondmarket(unittest.TestCase):
         expected = {'MM101': 0.1, 'MM102': 0.1, 'MM103': 0.2, 'MM104': 0.4, 'MM105': 0.2}
         self.assertDictEqual(weights, expected)
         
-    def test_record_trades(self):
+    def test_report_trades(self):
         self.assertFalse(self.bondmarket.trades)
-        trade_report = {'time': 1, 'name': 'MM103', 'price': 99.95, 'size': 20, 'seller': 'd1', 'buyer': 'm1'}
-        self.bondmarket.record_trades(trade_report)
-        self.assertDictEqual(self.bondmarket.trades, {1: trade_report})
-        self.assertEqual(self.bondmarket.last_prices['MM103'], 99.95)
+        matcher = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 20, 'side': 'buy', 'price': 99.95}
+        trade_report = {'Sequence': 1, 'Dealer': 'd1', 'OrderId': 'm1_1', 'Bond': 'MM101', 'Size': 20, 'Side': 'buy', 
+                        'Price': 99.95, 'Day': 1}
+        self.bondmarket.report_trades(matcher, 1)
+        self.assertDictEqual(self.bondmarket.trades[0], trade_report)
+        self.assertEqual(self.bondmarket.last_prices['MM101'], 99.95)
+        
+    def test_match_trade(self):
+        quotes = [
+                    {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'buy', 'price': 100.1183},
+                    {'Dealer': 'd2', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'buy', 'price': 100.1453},
+                    {'Dealer': 'd3', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'buy', 'price': 100.1183}
+                ]
+        step = 10
+        np.random.seed(1) # randomly selects position 1 (d3)
+        dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, step)
+        self.assertDictEqual({'Dealer': 'd3', 'Size': 5, 'Bond': 'MM101', 'Side': 'buy'}, dealer_confirm)
+        self.assertDictEqual({'BuySide': 'm1', 'Size': 5, 'Bond': 'MM101', 'Side': 'buy', 'Price': 100.1183}, buyside_confirm)
+        
+        quotes = [
+                    {'Dealer': 'd1', 'order_id': 'm1_2', 'name': 'MM101', 'amount': 8, 'side': 'sell', 'price': 99.6789},
+                    {'Dealer': 'd2', 'order_id': 'm1_2', 'name': 'MM101', 'amount': 8, 'side': 'sell', 'price': 99.8888},
+                    {'Dealer': 'd3', 'order_id': 'm1_2', 'name': 'MM101', 'amount': 8, 'side': 'sell', 'price': 99.8888}
+                ]
+        step = 11
+        np.random.seed(2) # randomly selects position 0 (d2)
+        dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, step)
+        self.assertDictEqual({'Dealer': 'd2', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell'}, dealer_confirm)
+        self.assertDictEqual({'BuySide': 'm1', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell', 'Price': 99.8888}, buyside_confirm)
+        
+        quotes = []
+        step = 12
+        dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, step)
+        self.assertFalse(dealer_confirm)
+        self.assertFalse(buyside_confirm)
+        
+    
+              
         
         

@@ -88,13 +88,13 @@ class MutualFund(BuySide):
         return flow_ratio*wealth_lag1
     
     def modify_portfolio(self, confirm):
-        bond = confirm['name']
-        if confirm['side'] == 'buy':
-            self.portfolio[bond]['Nominal'] += confirm['size']
-            self.cash -= confirm['size']*confirm['price']
+        bond = confirm['Bond']
+        if confirm['Side'] == 'buy':
+            self.portfolio[bond]['Nominal'] += confirm['Size']
+            self.cash -= confirm['Size']*confirm['Price']
         else:
-            self.portfolio[bond]['Nominal'] -= confirm['size']
-            self.cash += confirm['size']*confirm['price']
+            self.portfolio[bond]['Nominal'] -= confirm['Size']
+            self.cash += confirm['Size']*confirm['Price']
             
     def make_portfolio_decision(self, step, prices):
         '''
@@ -165,13 +165,13 @@ class InsuranceCo(BuySide):
         return 'BuySide({0}, {1})'.format(self._trader_id, self.trader_type)
     
     def modify_portfolio(self, confirm):
-        bond = confirm['name']
-        if confirm['side'] == 'buy':
-            self.portfolio[bond]['Nominal'] += confirm['size']
-            self.equity -= confirm['size']*confirm['price']
+        bond = confirm['Bond']
+        if confirm['Side'] == 'buy':
+            self.portfolio[bond]['Nominal'] += confirm['Size']
+            self.equity -= confirm['Size']*confirm['Price']
         else:
-            self.portfolio[bond]['Nominal'] -= confirm['size']
-            self.equity += confirm['size']*confirm['price']
+            self.portfolio[bond]['Nominal'] -= confirm['Size']
+            self.equity += confirm['Size']*confirm['Price']
     
     def make_portfolio_decision(self, prices, equity_return):
         '''
@@ -241,10 +241,10 @@ class Dealer(object):
     def __repr__(self):
         return 'Dealer({0}, {1})'.format(self._trader_id, self.trader_type)
     
-    def update_limits(self, long, short):
+    def update_limits(self, long1, short1):
         for bond in self.bond_list:
-            self.portfolio[bond]['LowerLimit'] = -self.portfolio[bond]['Nominal']*short
-            self.portfolio[bond]['UpperLimit'] = self.portfolio[bond]['Nominal']*long
+            self.portfolio[bond]['LowerLimit'] = -self.portfolio[bond]['Nominal']*short1
+            self.portfolio[bond]['UpperLimit'] = self.portfolio[bond]['Nominal']*long1
             self.portfolio[bond]['Quantity'] = 0
             
     def update_price(self, prices):

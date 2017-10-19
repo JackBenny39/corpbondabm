@@ -18,8 +18,9 @@ class BondMarket(object):
         '''
         self._market_id = name # trader id
         self.bonds = []
-        self.trades = {}
+        self.trades = []
         self.last_prices = {}
+        self.trade_sequence = 0
         
     def __repr__(self):
         return 'BondMarket({0})'.format(self._market_id)
@@ -49,9 +50,42 @@ class BondMarket(object):
         names = [x['Name'] for x in self.bonds]
         return dict(zip(names, weights))
     
-    def record_trades(self, trade_report):
-        self.trades[trade_report['time']] = trade_report
-        self.last_prices[trade_report['name']] = trade_report['price']
+    def report_trades(self, matched_quote, step):
+        # Report all information to the transaction collector
+        self.trade_sequence += 1
+        trade_report = {'Sequence': self.trade_sequence, 'Dealer': matched_quote['Dealer'], 'OrderId': matched_quote['order_id'], 
+                        'Bond': matched_quote['name'], 'Size': matched_quote['amount'], 'Side': matched_quote['side'], 
+                        'Price': matched_quote['price'], 'Day': step}
+        self.trades.append(trade_report)
+        self.last_prices[trade_report['Bond']] = trade_report['Price']
+        
+    def make_dealer_confirm(self, matched_quote):
+        # Report Dealer, Size, Bond, Side
+        return {'Dealer': matched_quote['Dealer'], 'Size': matched_quote['amount'], 'Bond': matched_quote['name'],
+                'Side': matched_quote['side']}
+        
+    def make_buyside_confirm(self, matched_quote):
+        # Report BuySide, Size, Bond, Side, Price
+        buy_side = matched_quote['order_id'].split('_')[0]
+        return {'BuySide': buy_side, 'Size': matched_quote['amount'], 'Bond': matched_quote['name'], 
+                'Side': matched_quote['side'], 'Price': matched_quote['price']}
+        
+    def match_trade(self, quotes, step):
+        # if side is buy, dealer is quoting ask prices
+        if quotes:
+            side = quotes[0]['side']
+            prices = [quotes[i]['price'] for i in range(0,len(quotes))]
+            best_price = np.min(prices) if side == 'buy' else np.max(prices)
+            best_quotes = [q for q in quotes if q['price'] == best_price]
+            match = best_quotes[np.random.randint(0, len(best_quotes))]
+            self.report_trades(match, step)
+            dealer_confirm = self.make_dealer_confirm(match)
+            buyside_confirm = self.make_buyside_confirm(match)
+        else:
+            dealer_confirm = None
+            buyside_confirm = None
+        return dealer_confirm, buyside_confirm
+            
         
         
         

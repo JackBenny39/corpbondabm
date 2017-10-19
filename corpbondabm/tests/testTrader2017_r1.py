@@ -94,8 +94,8 @@ class TestTrader(unittest.TestCase):
         
     def test_modify_portfolioMM(self):
         self.m1.cash = 0
-        confirm_sell = {'name': 'MM101', 'side': 'sell', 'price': 100, 'size': 5}
-        confirm_buy = {'name': 'MM105', 'side': 'buy', 'price': 100, 'size': 10}
+        confirm_sell = {'Bond': 'MM101', 'Side': 'sell', 'Price': 100, 'Size': 5, 'BuySide': 'm1'}
+        confirm_buy = {'Bond': 'MM105', 'Side': 'buy', 'Price': 100, 'Size': 10, 'BuySide': 'm1'}
         self.assertEqual(self.m1.cash, 0)
         self.m1.modify_portfolio(confirm_sell)
         self.assertEqual(self.m1.cash, 500)
@@ -165,8 +165,8 @@ class TestTrader(unittest.TestCase):
         
     def test_modify_portfolioIC(self):
         self.i1.equity = 0
-        confirm_sell = {'name': 'MM101', 'side': 'sell', 'price': 100, 'size': 5}
-        confirm_buy = {'name': 'MM105', 'side': 'buy', 'price': 100, 'size': 10}
+        confirm_sell = {'Bond': 'MM101', 'Side': 'sell', 'Price': 100, 'Size': 5, 'BuySide': 'i1'}
+        confirm_buy = {'Bond': 'MM105', 'Side': 'buy', 'Price': 100, 'Size': 10, 'BuySide': 'i1'}
         self.assertEqual(self.i1.equity, 0)
         self.i1.modify_portfolio(confirm_sell)
         self.assertEqual(self.i1.equity, 500)
