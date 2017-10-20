@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 ALPHA = 0.00017
@@ -150,7 +151,7 @@ class InsuranceCo(BuySide):
         
         
     '''
-    def __init__(self, name, bond_weight_target, bond_list, portfolio):
+    def __init__(self, name, bond_weight_target, bond_list, portfolio, year):
         '''
         Initialize InsuranceCo
         
@@ -160,6 +161,7 @@ class InsuranceCo(BuySide):
         self.trader_type = 'InsuranceCo'
         self.equity = 0
         self.bond_weight_target = bond_weight_target
+        self.equity_returns = self.make_equity_returns(year)
         
     def __repr__(self):
         return 'BuySide({0}, {1})'.format(self._trader_id, self.trader_type)
@@ -172,8 +174,14 @@ class InsuranceCo(BuySide):
         else:
             self.portfolio[bond]['Nominal'] -= confirm['Size']
             self.equity += confirm['Size']*confirm['Price']
+            
+    def make_equity_returns(self, year):
+        indf = pd.read_csv('C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\gspc.csv', parse_dates=['Date'])
+        indf = indf.assign(Year = [x.year for x in indf.Date],
+                           Return = indf['Adj Close'].pct_change())
+        return np.array(indf[indf.Year==year]['Return'])
     
-    def make_portfolio_decision(self, prices, equity_return):
+    def make_portfolio_decision(self, step, prices):
         '''
         The InsuranceCo needs to know:
         1. Bond portfolio value
@@ -183,7 +191,7 @@ class InsuranceCo(BuySide):
         1. Randomly buys/sells bonds to re-weight
         '''
         self.rfq_collector.clear()
-        self.equity *= (1+equity_return)
+        self.equity *= (1+self.equity_returns[step-1])
         bond_value = self.compute_portfolio_value(prices)
         portfolio_value = self.equity+bond_value
         bond_diff = bond_value - self.bond_weight_target*portfolio_value

@@ -45,7 +45,7 @@ class TestTrader(unittest.TestCase):
         self.m1.cash = self.m1.target*bond_value/(1-self.m1.target)
         self.m1.add_nav_to_history(0, prices)
         
-        self.i1 = InsuranceCo('i1', 1-IC_EQUITY, bond_list, ic_portfolio)
+        self.i1 = InsuranceCo('i1', 1-IC_EQUITY, bond_list, ic_portfolio, 2003)
         prices = {k:self.i1.portfolio[k]['Price'] for k in self.i1.bond_list}
         bond_value = self.i1.compute_portfolio_value(prices)
         self.i1.equity = IC_EQUITY*bond_value/(1-IC_EQUITY)
@@ -177,9 +177,9 @@ class TestTrader(unittest.TestCase):
         
     def test_make_portfolio_decisionIC(self):
         prices = {'MM101': 101, 'MM102': 98, 'MM103': 95, 'MM104': 105, 'MM105': 100}
-        equity_ret = 0.02
+        self.i1.equity_returns[0] = 0.02
         np.random.seed(1) # randomly selects 'MM104'
-        self.i1.make_portfolio_decision(prices, equity_ret)
+        self.i1.make_portfolio_decision(1, prices)
         expected = {'order_id': 'i1_1', 'name': 'MM104', 'side': 'sell', 'amount': 5.0}
         self.assertDictEqual(self.i1.rfq_collector[0], expected)
         
