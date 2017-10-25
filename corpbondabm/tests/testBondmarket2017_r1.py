@@ -70,7 +70,7 @@ class TestBondmarket(unittest.TestCase):
         step = 10
         np.random.seed(1) # randomly selects position 1 (d3)
         dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, step)
-        self.assertDictEqual({'Dealer': 'd3', 'Size': 5, 'Bond': 'MM101', 'Side': 'buy'}, dealer_confirm)
+        self.assertDictEqual({'Dealer': 'd3', 'Size': 5, 'Bond': 'MM101', 'Side': 'buy', 'Price': 100.1183}, dealer_confirm)
         self.assertDictEqual({'BuySide': 'm1', 'Size': 5, 'Bond': 'MM101', 'Side': 'buy', 'Price': 100.1183}, buyside_confirm)
         
         quotes = [
@@ -81,7 +81,7 @@ class TestBondmarket(unittest.TestCase):
         step = 11
         np.random.seed(2) # randomly selects position 0 (d2)
         dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, step)
-        self.assertDictEqual({'Dealer': 'd2', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell'}, dealer_confirm)
+        self.assertDictEqual({'Dealer': 'd2', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell', 'Price': 99.8888}, dealer_confirm)
         self.assertDictEqual({'BuySide': 'm1', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell', 'Price': 99.8888}, buyside_confirm)
         
         quotes = []

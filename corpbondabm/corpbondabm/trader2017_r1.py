@@ -37,12 +37,14 @@ class BuySide(object):
         rfq =  {'order_id': order_id, 'name': name, 'side': side, 'amount': amount}
         self.rfq_collector.append(rfq)
         
-    def compute_portfolio_value(self, prices):
-        bond_values = [self.portfolio[x]['Nominal']*prices[x]/100 for x in self.bond_list]
-        return np.sum(bond_values)
+    def update_prices(self, prices):
+        for bond in self.bond_list:
+            self.portfolio[bond]['Price'] = prices[bond]
+        
+    def compute_portfolio_value(self):
+        return np.sum([self.portfolio[x]['Nominal']*self.portfolio[x]['Price']/100 for x in self.bond_list])
     
-    
-    
+        
 class MutualFund(BuySide):
     '''
     MutualFund
@@ -71,14 +73,14 @@ class MutualFund(BuySide):
     def make_weight_array(self):
         return np.array([self.index_weights[x] for x in self.bond_list])
     
-    def compute_weights_from_nominal(self):
-        nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
-        nominal_value = np.sum(nominals)
-        weights = nominals/nominal_value
-        return dict(zip(self.bond_list, weights))
+    #def compute_weights_from_nominal(self):
+        #nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
+        #nominal_value = np.sum(nominals)
+        #weights = nominals/nominal_value
+        #return dict(zip(self.bond_list, weights))
     
-    def add_nav_to_history(self, step, prices):
-        nav = self.compute_portfolio_value(prices) + self.cash
+    def add_nav_to_history(self, step):
+        nav = self.compute_portfolio_value() + self.cash
         self.nav_history[step] = nav
     
     def compute_flow(self, step):
@@ -96,8 +98,9 @@ class MutualFund(BuySide):
         else:
             self.portfolio[bond]['Nominal'] -= confirm['Size']
             self.cash += confirm['Size']*confirm['Price']
+        self.portfolio[bond]['Price'] = confirm['Price']
             
-    def make_portfolio_decision(self, step, prices):
+    def make_portfolio_decision(self, step):
         '''
         The MutualFund needs to know:
         1. Cash Position relative to limits
@@ -117,7 +120,7 @@ class MutualFund(BuySide):
         expected_cash_pct = (self.cash + expected_cash)/(last_nav + expected_cash)
         if expected_cash_pct < self.lower_bound or expected_cash_pct > self.upper_bound:
             nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
-            xprices = np.array([prices[x]/100 for x in self.bond_list])
+            xprices = np.array([self.portfolio[x]['Price']/100 for x in self.bond_list])
             expected_nav = last_nav + expected_cash
             target_nominal_value = (1 - self.target)*expected_nav
             target_nominals = self.index_weight_array * target_nominal_value
@@ -143,8 +146,6 @@ class MutualFund(BuySide):
                         self.make_rfq(bond, side, np.abs(np.round(final_sizes[i],0)))
  
         
-    
-    
 class InsuranceCo(BuySide):
     '''
     InsuranceCo
@@ -174,14 +175,15 @@ class InsuranceCo(BuySide):
         else:
             self.portfolio[bond]['Nominal'] -= confirm['Size']
             self.equity += confirm['Size']*confirm['Price']
+        self.portfolio[bond]['Price'] = confirm['Price']
             
     def make_equity_returns(self, year):
         indf = pd.read_csv('C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\gspc.csv', parse_dates=['Date'])
         indf = indf.assign(Year = [x.year for x in indf.Date],
-                           Return = indf['Adj Close'].pct_change())
+                           Return = indf['Adj Close'].pct_change()/100)
         return np.array(indf[indf.Year==year]['Return'])
     
-    def make_portfolio_decision(self, step, prices):
+    def make_portfolio_decision(self, step):
         '''
         The InsuranceCo needs to know:
         1. Bond portfolio value
@@ -192,13 +194,13 @@ class InsuranceCo(BuySide):
         '''
         self.rfq_collector.clear()
         self.equity *= (1+self.equity_returns[step-1])
-        bond_value = self.compute_portfolio_value(prices)
+        bond_value = self.compute_portfolio_value()
         portfolio_value = self.equity+bond_value
         bond_diff = bond_value - self.bond_weight_target*portfolio_value
         if np.abs(bond_diff) >= 1.0:
             side = 'sell' if bond_diff >= 1.0 else 'buy'
             bond = self.bond_list[np.random.randint(0, len(self.bond_list))]
-            bond_price = prices[bond]/100
+            bond_price = self.portfolio[bond]['Price']/100
             self.make_rfq(bond, side, np.abs(np.round(bond_diff/bond_price,0)))
     
     
@@ -255,8 +257,18 @@ class Dealer(object):
             self.portfolio[bond]['UpperLimit'] = self.portfolio[bond]['Nominal']*long1
             self.portfolio[bond]['Quantity'] = 0
             
-    def update_price(self, prices):
-        pass
+    def update_prices(self, prices):
+        for bond in self.bond_list:
+            self.portfolio[bond]['Price'] = prices[bond]
+    
+    def modify_portfolio(self, confirm):
+        bond = confirm['Bond']
+        # if confirm order to sell, dealer buys and increases inventory
+        if confirm['Side'] == 'buy':
+            self.portfolio[bond]['Nominal'] -= confirm['Size']
+        else:
+            self.portfolio[bond]['Nominal'] += confirm['Size']
+        self.portfolio[bond]['Price'] = confirm['Price']
             
     def make_quote(self, rfq):
         order_id = rfq['order_id']

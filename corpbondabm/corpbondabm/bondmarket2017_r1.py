@@ -62,7 +62,7 @@ class BondMarket(object):
     def make_dealer_confirm(self, matched_quote):
         # Report Dealer, Size, Bond, Side
         return {'Dealer': matched_quote['Dealer'], 'Size': matched_quote['amount'], 'Bond': matched_quote['name'],
-                'Side': matched_quote['side']}
+                'Side': matched_quote['side'], 'Price': matched_quote['price']}
         
     def make_buyside_confirm(self, matched_quote):
         # Report BuySide, Size, Bond, Side, Price
@@ -72,7 +72,8 @@ class BondMarket(object):
         
     def match_trade(self, quotes, step):
         # if side is buy, dealer is quoting ask prices
-        if quotes:
+        prices = [quotes[i]['price'] for i in range(0,len(quotes))]
+        if any(prices):
             side = quotes[0]['side']
             prices = [quotes[i]['price'] for i in range(0,len(quotes))]
             best_price = np.min(prices) if side == 'buy' else np.max(prices)

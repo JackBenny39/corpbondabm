@@ -40,44 +40,54 @@ class TestTrader(unittest.TestCase):
         self.b1 = BuySide('b1', bond_list, mm_portfolio)
             
         self.m1 = MutualFund('m1', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights)
-        prices = {k:self.m1.portfolio[k]['Price'] for k in self.m1.bond_list}
-        bond_value = self.m1.compute_portfolio_value(prices)
+        bond_value = self.m1.compute_portfolio_value()
         self.m1.cash = self.m1.target*bond_value/(1-self.m1.target)
-        self.m1.add_nav_to_history(0, prices)
+        self.m1.add_nav_to_history(0)
         
         self.i1 = InsuranceCo('i1', 1-IC_EQUITY, bond_list, ic_portfolio, 2003)
-        prices = {k:self.i1.portfolio[k]['Price'] for k in self.i1.bond_list}
-        bond_value = self.i1.compute_portfolio_value(prices)
+        bond_value = self.i1.compute_portfolio_value()
         self.i1.equity = IC_EQUITY*bond_value/(1-IC_EQUITY)
         
         self.h1 = HedgeFund('h1', bond_list, mm_portfolio) # use MF portfolio for now
         
         self.d1 = Dealer('d1', bond_list, d_portfolio, 0.1, 0.075, TREYNOR_BOUNDS)
         
-        
+    # The Buy Side    
     def test_repr_BuySide(self):
         self.assertEqual('BuySide(b1)', '{0}'.format(self.b1))
         
     def test_make_rfq(self):
-        self.m1.make_rfq('MM101', 'sell', 10)
-        expected = {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 10}
-        self.assertDictEqual(self.m1.rfq_collector[0], expected)
+        self.b1.make_rfq('MM101', 'sell', 10)
+        expected = {'order_id': 'b1_1', 'name': 'MM101', 'side': 'sell', 'amount': 10}
+        self.assertDictEqual(self.b1.rfq_collector[0], expected)
+        
+    def test_update_pricesB(self):
+        prices = {'MM101': 100, 'MM102': 95, 'MM103': 90, 'MM104': 105, 'MM105': 110}
+        self.b1.update_prices(prices)
+        self.assertEqual(self.b1.portfolio['MM101']['Price'], 100)
+        self.assertEqual(self.b1.portfolio['MM102']['Price'], 95)
+        self.assertEqual(self.b1.portfolio['MM103']['Price'], 90)
+        self.assertEqual(self.b1.portfolio['MM104']['Price'], 105)
+        self.assertEqual(self.b1.portfolio['MM105']['Price'], 110)
         
     def test_compute_portfolio_value(self):
         prices = {'MM101': 100, 'MM102': 100, 'MM103': 100, 'MM104': 100, 'MM105': 100}
-        portfolio_value = self.m1.compute_portfolio_value(prices)
+        self.b1.update_prices(prices)
+        portfolio_value = self.b1.compute_portfolio_value()
         bond_values = np.sum([x['Nominal'] for x in self.bondmarket.bonds])
         expected = MM_FRACTION*bond_values
         self.assertEqual(portfolio_value, expected)
+        
 
-    
+    # The Mutual Fund
     def test_repr_MutualFund(self):
         self.assertEqual('BuySide(m1, MutualFund)', '{0}'.format(self.m1))
         
     def test_add_nav_to_history(self):
         self.m1.nav_history = {}
         prices = {'MM101': 100, 'MM102': 100, 'MM103': 100, 'MM104': 100, 'MM105': 100}
-        self.m1.add_nav_to_history(1, prices)
+        self.m1.update_prices(prices)
+        self.m1.add_nav_to_history(1)
         self.assertDictEqual(self.m1.nav_history, {1: 788.91782200258319})
           
     def test_compute_flow(self):
@@ -100,12 +110,15 @@ class TestTrader(unittest.TestCase):
         self.m1.modify_portfolio(confirm_sell)
         self.assertEqual(self.m1.cash, 500)
         self.assertEqual(self.m1.portfolio['MM101']['Nominal'], 70)
+        self.assertEqual(self.m1.portfolio['MM101']['Price'], 100)
         self.m1.modify_portfolio(confirm_buy)
         self.assertEqual(self.m1.cash, -500)
         self.assertEqual(self.m1.portfolio['MM105']['Nominal'], 160)
+        self.assertEqual(self.m1.portfolio['MM105']['Price'], 100)
         
     def test_make_portfolio_decisionMF(self):
         prices = {'MM101': 101, 'MM102': 98, 'MM103': 95, 'MM104': 105, 'MM105': 100}
+        self.m1.update_prices(prices)
         # Do nothing: index doesn't change cash between limits
         self.m1.nav_history[1] = 750
         self.m1.nav_history[5] = 750
@@ -116,7 +129,7 @@ class TestTrader(unittest.TestCase):
         self.m1.portfolio['MM103']['Nominal'] = 145
         self.m1.portfolio['MM104']['Nominal'] = 285
         self.m1.portfolio['MM105']['Nominal'] = 137.5
-        self.m1.make_portfolio_decision(7, prices)
+        self.m1.make_portfolio_decision(7)
         self.assertFalse(self.m1.rfq_collector)
         # Sell some: index decline, low on cash
         self.m1.nav_history[1] = 750
@@ -128,7 +141,7 @@ class TestTrader(unittest.TestCase):
         self.m1.portfolio['MM103']['Nominal'] = 145
         self.m1.portfolio['MM104']['Nominal'] = 285
         self.m1.portfolio['MM105']['Nominal'] = 137.5
-        self.m1.make_portfolio_decision(7, prices)
+        self.m1.make_portfolio_decision(7)
         expected = [
                     {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 2.0},
                     {'order_id': 'm1_2', 'name': 'MM102', 'side': 'sell', 'amount': 1.0},
@@ -148,7 +161,7 @@ class TestTrader(unittest.TestCase):
         self.m1.portfolio['MM103']['Nominal'] = 138
         self.m1.portfolio['MM104']['Nominal'] = 293
         self.m1.portfolio['MM105']['Nominal'] = 139.5
-        self.m1.make_portfolio_decision(7, prices)
+        self.m1.make_portfolio_decision(7)
         expected = [
                     {'order_id': 'm1_5', 'name': 'MM101', 'side': 'buy', 'amount': 6.0},
                     {'order_id': 'm1_6', 'name': 'MM103', 'side': 'buy', 'amount': 10.0},
@@ -158,8 +171,9 @@ class TestTrader(unittest.TestCase):
         for i in range(len(self.m1.rfq_collector)):
             with self.subTest(i=i):
                 self.assertDictEqual(self.m1.rfq_collector[i], expected[i])
+                
         
-        
+    # The Insurance Company    
     def test_repr_InsuranceCo(self):
         self.assertEqual('BuySide(i1, InsuranceCo)', '{0}'.format(self.i1))
         
@@ -171,23 +185,28 @@ class TestTrader(unittest.TestCase):
         self.i1.modify_portfolio(confirm_sell)
         self.assertEqual(self.i1.equity, 500)
         self.assertEqual(self.i1.portfolio['MM101']['Nominal'], 420)
+        self.assertEqual(self.i1.portfolio['MM101']['Price'], 100)
         self.i1.modify_portfolio(confirm_buy)
         self.assertEqual(self.i1.equity, -500)
         self.assertEqual(self.i1.portfolio['MM105']['Nominal'], 860)
+        self.assertEqual(self.i1.portfolio['MM105']['Price'], 100)
         
     def test_make_portfolio_decisionIC(self):
         prices = {'MM101': 101, 'MM102': 98, 'MM103': 95, 'MM104': 105, 'MM105': 100}
+        self.i1.update_prices(prices)
         self.i1.equity_returns[0] = 0.02
         np.random.seed(1) # randomly selects 'MM104'
-        self.i1.make_portfolio_decision(1, prices)
+        self.i1.make_portfolio_decision(1)
         expected = {'order_id': 'i1_1', 'name': 'MM104', 'side': 'sell', 'amount': 5.0}
         self.assertDictEqual(self.i1.rfq_collector[0], expected)
         
-   
+        
+    # The Hedge Fund    
     def test_repr_HedgeFund(self):
         self.assertEqual('BuySide(h1, HedgeFund)', '{0}'.format(self.h1))
         
         
+    # The Dealer   
     def test_repr_Dealer(self):
         self.assertEqual('Dealer(d1, Dealer)', '{0}'.format(self.d1))
         
@@ -198,6 +217,27 @@ class TestTrader(unittest.TestCase):
                     'MM104': {'Name': 'MM104', 'Nominal': 2000, 'Price': 98.24880431930488, 'Specialization': 0.5, 'LowerLimit': -150.0, 'UpperLimit': 200.0, 'Quantity': 0}, 
                     'MM105': {'Name': 'MM105', 'Nominal': 1000, 'Price': 96.7721765936335, 'Specialization': 0.5, 'LowerLimit': -75.0, 'UpperLimit': 100.0, 'Quantity': 0}}
         self.assertDictEqual(self.d1.portfolio, expected)
+        
+    def test_modify_portfolioD(self):
+        confirm_sell = {'Bond': 'MM101', 'Side': 'sell', 'Price': 100, 'Size': 5, 'Dealer': 'd1'}
+        confirm_buy = {'Bond': 'MM105', 'Side': 'buy', 'Price': 100, 'Size': 10, 'Dealer': 'd1'}
+        # sell confirm : dealer buys
+        self.d1.modify_portfolio(confirm_sell)
+        self.assertEqual(self.d1.portfolio['MM101']['Nominal'], 505)
+        self.assertEqual(self.d1.portfolio['MM101']['Price'], 100)
+        # buy confirm : dealer sells
+        self.d1.modify_portfolio(confirm_buy)
+        self.assertEqual(self.d1.portfolio['MM105']['Nominal'], 990)
+        self.assertEqual(self.d1.portfolio['MM105']['Price'], 100)
+        
+    def test_update_pricesD(self):
+        prices = {'MM101': 100, 'MM102': 95, 'MM103': 90, 'MM104': 105, 'MM105': 110}
+        self.d1.update_prices(prices)
+        self.assertEqual(self.d1.portfolio['MM101']['Price'], 100)
+        self.assertEqual(self.d1.portfolio['MM102']['Price'], 95)
+        self.assertEqual(self.d1.portfolio['MM103']['Price'], 90)
+        self.assertEqual(self.d1.portfolio['MM104']['Price'], 105)
+        self.assertEqual(self.d1.portfolio['MM105']['Price'], 110)
         
     def test_make_quote(self):
         '''
