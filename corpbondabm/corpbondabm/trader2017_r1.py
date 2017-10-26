@@ -177,11 +177,12 @@ class InsuranceCo(BuySide):
             self.equity += confirm['Size']*confirm['Price']
         self.portfolio[bond]['Price'] = confirm['Price']
             
-    def make_equity_returns(self, year):
-        indf = pd.read_csv('C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\gspc.csv', parse_dates=['Date'])
+    def make_equity_returns(self, inyear):
+        indf = pd.read_csv('../csv/gspc.csv', parse_dates=['Date'])
+        #indf = pd.read_csv('C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\gspc.csv', parse_dates=['Date'])
         indf = indf.assign(Year = [x.year for x in indf.Date],
                            Return = indf['Adj Close'].pct_change()/100)
-        return np.array(indf[indf.Year==year]['Return'])
+        return np.array(indf[indf.Year==inyear]['Return'])
     
     def make_portfolio_decision(self, step):
         '''

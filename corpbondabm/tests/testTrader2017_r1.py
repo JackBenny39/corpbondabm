@@ -47,6 +47,7 @@ class TestTrader(unittest.TestCase):
         self.i1 = InsuranceCo('i1', 1-IC_EQUITY, bond_list, ic_portfolio, 2003)
         bond_value = self.i1.compute_portfolio_value()
         self.i1.equity = IC_EQUITY*bond_value/(1-IC_EQUITY)
+        print(len(self.i1.equity_returns))
         
         self.h1 = HedgeFund('h1', bond_list, mm_portfolio) # use MF portfolio for now
         
