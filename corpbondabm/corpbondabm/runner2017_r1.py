@@ -88,7 +88,6 @@ class Runner(object):
             
     def run_mcs(self, prime1):
         prices = self.bondmarket.last_prices
-        print(prime1-1, prices)
         for current_date in range(prime1, prime1+self.run_steps):
             for buyside in self.make_buyside():
                 buyside.make_portfolio_decision(current_date)
@@ -100,7 +99,6 @@ class Runner(object):
                             dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, current_date)
                             self.dealers_dict[dealer_confirm['Dealer']].modify_portfolio(dealer_confirm)
                             buyside.modify_portfolio(buyside_confirm)
-                            print(current_date, buyside_confirm)
             # All agents get price updates from the bondmarket at the end of the day
             prices = self.bondmarket.last_prices
             for d in self.dealers:
@@ -108,8 +106,8 @@ class Runner(object):
             self.mutualfund.update_prices(prices)
             self.mutualfund.add_nav_to_history(current_date)
             self.insuranceco.update_prices(prices)
-            print(current_date, prices)
-            print(current_date, self.mutualfund.nav_history[current_date])
+            self.bondmarket.print_last_prices(current_date)
+
 
                     
                         
@@ -132,8 +130,16 @@ if __name__ == '__main__':
     run_steps=12
     #year=2003
     
+    h5filename='test.h5'
+    h5dir = 'C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\h5 files\\'
+    h5_file = '%s%s' % (h5dir, h5filename)
+    
     market1 = Runner(mm_share=mm_share, run_steps=run_steps)
     market1.seed_mutual_fund(8)
     market1.run_mcs(8)
+    market1.bondmarket.last_prices_to_h5(h5_file)
+    market1.bondmarket.trades_to_h5(h5_file)
+    market1.mutualfund.nav_to_h5(h5_file)
+    
 
 
