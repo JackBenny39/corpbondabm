@@ -23,11 +23,11 @@ class Runner(object):
     def make_market(self, name):
         # allow user to specify as args?
         bondmarket = BondMarket(name)
-        bondmarket.add_bond('MM101', 500, 1, .0175, .015, 2)
-        bondmarket.add_bond('MM102', 500, 2, .025, .0175, 2)
-        bondmarket.add_bond('MM103', 1000, 5, .0225, .025, 2)
-        bondmarket.add_bond('MM104', 2000, 10, .024, .026, 2)
-        bondmarket.add_bond('MM105', 1000, 25, .04, .0421, 2)
+        bondmarket.add_bond('MM101', 5000, 1, .0175, .015, 2)
+        bondmarket.add_bond('MM102', 5000, 2, .025, .0175, 2)
+        bondmarket.add_bond('MM103', 10000, 5, .0225, .025, 2)
+        bondmarket.add_bond('MM104', 20000, 10, .024, .026, 2)
+        bondmarket.add_bond('MM105', 10000, 25, .04, .0421, 2)
         return bondmarket
     
     def make_mutual_fund(self, name, share, ll, ul, target):
@@ -96,8 +96,8 @@ class Runner(object):
                     for rfq in buyside.rfq_collector:
                         quotes = [d.make_quote(rfq) for d in self.dealers]
                         # Note: selected dealer and buyside know the new price
-                        dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, current_date)
-                        if dealer_confirm:
+                        if any(quotes):
+                            dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, current_date)
                             self.dealers_dict[dealer_confirm['Dealer']].modify_portfolio(dealer_confirm)
                             buyside.modify_portfolio(buyside_confirm)
                             print(current_date, buyside_confirm)
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     #ic_bond=0.6
     #dealer_long=0.1
     #dealer_short=0.075
-    run_steps=30
+    run_steps=12
     #year=2003
     
     market1 = Runner(mm_share=mm_share, run_steps=run_steps)

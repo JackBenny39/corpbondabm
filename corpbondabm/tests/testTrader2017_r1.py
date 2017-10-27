@@ -47,7 +47,6 @@ class TestTrader(unittest.TestCase):
         self.i1 = InsuranceCo('i1', 1-IC_EQUITY, bond_list, ic_portfolio, 2003)
         bond_value = self.i1.compute_portfolio_value()
         self.i1.equity = IC_EQUITY*bond_value/(1-IC_EQUITY)
-        print(len(self.i1.equity_returns))
         
         self.h1 = HedgeFund('h1', bond_list, mm_portfolio) # use MF portfolio for now
         
@@ -255,14 +254,12 @@ class TestTrader(unittest.TestCase):
         self.d1.portfolio['MM101']['Quantity'] = 48
         rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 5}
         quote = self.d1.make_quote(rfq)
-        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': None, 'side': 'sell', 'price': None}
-        self.assertDictEqual(quote, expected)
+        self.assertFalse(quote)
         #1b: breach lower limit
         self.d1.portfolio['MM101']['Quantity'] = -35
         rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'buy', 'amount': 5}
         quote = self.d1.make_quote(rfq)
-        expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': None, 'side': 'buy', 'price': None}
-        self.assertDictEqual(quote, expected)
+        self.assertFalse(quote)
         #2
         self.d1.portfolio['MM101']['Quantity'] = 20
         rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'buy', 'amount': 5}

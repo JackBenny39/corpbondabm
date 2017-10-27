@@ -72,20 +72,13 @@ class BondMarket(object):
         
     def match_trade(self, quotes, step):
         # if side is buy, dealer is quoting ask prices
+        side = quotes[0]['side']
         prices = [quotes[i]['price'] for i in range(0,len(quotes))]
-        if any(prices):
-            side = quotes[0]['side']
-            prices = [quotes[i]['price'] for i in range(0,len(quotes))]
-            best_price = np.min(prices) if side == 'buy' else np.max(prices)
-            best_quotes = [q for q in quotes if q['price'] == best_price]
-            match = best_quotes[np.random.randint(0, len(best_quotes))]
-            self.report_trades(match, step)
-            dealer_confirm = self.make_dealer_confirm(match)
-            buyside_confirm = self.make_buyside_confirm(match)
-        else:
-            dealer_confirm = None
-            buyside_confirm = None
-        return dealer_confirm, buyside_confirm
+        best_price = np.min(prices) if side == 'buy' else np.max(prices)
+        best_quotes = [q for q in quotes if q['price'] == best_price]
+        match = best_quotes[np.random.randint(0, len(best_quotes))]
+        self.report_trades(match, step)
+        return self.make_dealer_confirm(match), self.make_buyside_confirm(match)
             
         
         

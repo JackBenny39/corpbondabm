@@ -179,7 +179,6 @@ class InsuranceCo(BuySide):
             
     def make_equity_returns(self, inyear):
         indf = pd.read_csv('../csv/gspc.csv', parse_dates=['Date'])
-        #indf = pd.read_csv('C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\gspc.csv', parse_dates=['Date'])
         indf = indf.assign(Year = [x.year for x in indf.Date],
                            Return = indf['Adj Close'].pct_change()/100)
         return np.array(indf[indf.Year==inyear]['Return'])
@@ -306,7 +305,7 @@ class Dealer(object):
                 price = bid_price if side == 'sell' else ask_price
                 quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
         else:
-            quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': None, 'side': side, 'price': None}
+            quote = None #{'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': None, 'side': side, 'price': None}
         return quote
             
     

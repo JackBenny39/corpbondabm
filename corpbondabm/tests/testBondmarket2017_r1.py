@@ -84,12 +84,6 @@ class TestBondmarket(unittest.TestCase):
         self.assertDictEqual({'Dealer': 'd2', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell', 'Price': 99.8888}, dealer_confirm)
         self.assertDictEqual({'BuySide': 'm1', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell', 'Price': 99.8888}, buyside_confirm)
         
-        quotes = []
-        step = 12
-        dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, step)
-        self.assertFalse(dealer_confirm)
-        self.assertFalse(buyside_confirm)
-        
     
               
         
