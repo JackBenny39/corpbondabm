@@ -144,6 +144,12 @@ class MutualFund(BuySide):
                 for i,bond in enumerate(self.bond_list):
                     if final_sizes[i] >= 1.0:
                         self.make_rfq(bond, side, np.abs(np.round(final_sizes[i],0)))
+    
+    def nav_to_h5(self, filename):
+        indate = [k for k in self.nav_history.keys()]
+        nav = [v for v in self.nav_history.values()]
+        df = pd.DataFrame({'Date': indate, 'NAV': nav})
+        df.to_hdf(filename, 'nav', append=True, format='table', complevel=5, complib='blosc')
  
         
 class InsuranceCo(BuySide):

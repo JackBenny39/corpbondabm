@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from math import pow
 
@@ -20,6 +21,7 @@ class BondMarket(object):
         self.bonds = []
         self.trades = []
         self.last_prices = {}
+        self.price_history = []
         self.trade_sequence = 0
         
     def __repr__(self):
@@ -79,8 +81,20 @@ class BondMarket(object):
         match = best_quotes[np.random.randint(0, len(best_quotes))]
         self.report_trades(match, step)
         return self.make_dealer_confirm(match), self.make_buyside_confirm(match)
+    
+    def print_last_prices(self, step):
+        current_prices = {bond: price for bond, price in self.last_prices.items()}
+        current_prices['Date'] = step
+        self.price_history.append(current_prices)
+    
+    def last_prices_to_h5(self, filename):
+        '''Append last prices to an h5 file'''
+        temp_df = pd.DataFrame(self.price_history)
+        temp_df.to_hdf(filename, 'last_prices', append=True, format='table', complevel=5, complib='blosc') 
+        
+    def trades_to_h5(self, filename):
+        '''Append trades to an h5 file'''
+        temp_df = pd.DataFrame(self.trades)
+        temp_df.to_hdf(filename, 'trades', append=True, format='table', complevel=5, complib='blosc')
             
-        
-        
-        
         
