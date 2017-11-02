@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from matplotlib import rc
+rc('font', **{'family': 'serif', 'serif': ['Cambria', 'Times New Roman']})
+
 from corpbondabm.bondmarket2017_r1 import BondMarket
 from corpbondabm.trader2017_r1 import MutualFund, InsuranceCo, Dealer
 
@@ -91,6 +94,14 @@ class Charter(object):
         for current_date in range(prime1):
             self.mutualfund.update_prices(self.bondmarket.last_prices)
             self.mutualfund.add_nav_to_history(current_date)
+            
+    def make_chart_data(self):
+        temp_df = pd.DataFrame(self.bondmarket.price_history)
+        bonds = [x['Name'] for x in self.bondmarket.bonds]
+        x = [np.array(temp_df.Date)]*len(bonds) 
+        y = [temp_df[x] for x in bonds]
+        for ix, line in enumerate(self.lines):
+            line.set_data(x[ix], y[ix])
         
     def makefig(self):
         fig = plt.figure(figsize=(13,9))
@@ -98,11 +109,13 @@ class Charter(object):
         ax.axis([PRIMER, self.run_steps, 95, 105])
         ax.set_xlabel('Date')
         ax.set_ylabel('Price')
+        colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'Chartreuse', 'DarkRed']
+        bonds = [x['Name'] for x in self.bondmarket.bonds]
         lines = []
-        colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'DarkBlue', 'DarkRed']
-        for c in colors:
+        for i, c in enumerate(colors):
             line_obj = ax.plot([], [], lw=2, color=c)[0]
             lines.append(line_obj)
+            ax.text(0.05+0.075*i, 1.0, bonds[i], transform=ax.transAxes, ha="right", va="bottom", color=c, fontweight="light", fontsize=10)
         return fig, ax, lines
     
     def setup_plot(self):
@@ -129,11 +142,7 @@ class Charter(object):
         self.mutualfund.add_nav_to_history(j)
         self.insuranceco.update_prices(prices)
         self.bondmarket.print_last_prices(j)
-        temp_df = pd.DataFrame(self.bondmarket.price_history)
-        x = [np.array(temp_df.Date)]*5 
-        y = [temp_df.MM101, temp_df.MM102, temp_df.MM103, temp_df.MM104, temp_df.MM105]
-        for ix, line in enumerate(self.lines):
-            line.set_data(x[ix], y[ix])
+        self.make_chart_data()
         return tuple(self.lines)
 
 
