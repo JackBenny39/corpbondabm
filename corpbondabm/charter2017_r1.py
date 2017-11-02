@@ -1,6 +1,7 @@
-import time
-
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from corpbondabm.bondmarket2017_r1 import BondMarket
 from corpbondabm.trader2017_r1 import MutualFund, InsuranceCo, Dealer
@@ -8,7 +9,7 @@ from corpbondabm.trader2017_r1 import MutualFund, InsuranceCo, Dealer
 TREYNOR_BOUNDS = [0.01, 0.0125]
 PRIMER = 8
 
-class Runner(object):
+class Charter(object):
     
     def __init__(self, market_name='bondmarket1', 
                  mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.08, mm_target=0.05,
@@ -20,7 +21,10 @@ class Runner(object):
         self.dealers, self.dealers_dict = self.make_dealers(dealer_long, dealer_short)
         self.run_steps = run_steps
         self.seed_mutual_fund(PRIMER)
-        self.run_mcs(PRIMER)
+        self.fig, self.ax, self.lines, = self.makefig()
+        self.animate = animation.FuncAnimation(self.fig, self.run_mcs_chart, np.arange(PRIMER, self.run_steps, 1),
+                                               init_func=self.setup_plot, interval=500, repeat=False, blit=True)
+        self.show = plt.show()
         
     def make_market(self, name):
         # allow user to specify as args?
@@ -87,34 +91,58 @@ class Runner(object):
         for current_date in range(prime1):
             self.mutualfund.update_prices(self.bondmarket.last_prices)
             self.mutualfund.add_nav_to_history(current_date)
-            
-    def run_mcs(self, prime1):
+        
+    def makefig(self):
+        fig = plt.figure(figsize=(13,9))
+        ax = fig.add_subplot(111)
+        ax.axis([PRIMER, self.run_steps, 95, 105])
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Price')
+        lines = []
+        colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'DarkBlue', 'DarkRed']
+        for c in colors:
+            line_obj = ax.plot([], [], lw=2, color=c)[0]
+            lines.append(line_obj)
+        return fig, ax, lines
+    
+    def setup_plot(self):
+        for line in self.lines:
+            line.set_data([], [])
+        return tuple(self.lines)
+        
+    def run_mcs_chart(self, j):
+        for buyside in self.make_buyside():
+            buyside.make_portfolio_decision(j)
+            if buyside.rfq_collector:
+                for rfq in buyside.rfq_collector:
+                    quotes = [d.make_quote(rfq) for d in self.dealers]
+                    # Note: selected dealer and buyside know the new price
+                    if any(quotes):
+                        dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, j)
+                        self.dealers_dict[dealer_confirm['Dealer']].modify_portfolio(dealer_confirm)
+                        buyside.modify_portfolio(buyside_confirm)
+        # All agents get price updates from the bondmarket at the end of the day
         prices = self.bondmarket.last_prices
-        for current_date in range(prime1, prime1+self.run_steps):
-            for buyside in self.make_buyside():
-                buyside.make_portfolio_decision(current_date)
-                if buyside.rfq_collector:
-                    for rfq in buyside.rfq_collector:
-                        quotes = [d.make_quote(rfq) for d in self.dealers]
-                        # Note: selected dealer and buyside know the new price
-                        if any(quotes):
-                            dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, current_date)
-                            self.dealers_dict[dealer_confirm['Dealer']].modify_portfolio(dealer_confirm)
-                            buyside.modify_portfolio(buyside_confirm)
-            # All agents get price updates from the bondmarket at the end of the day
-            prices = self.bondmarket.last_prices
-            for d in self.dealers:
-                d.update_prices(prices)
-            self.mutualfund.update_prices(prices)
-            self.mutualfund.add_nav_to_history(current_date)
-            self.insuranceco.update_prices(prices)
-            self.bondmarket.print_last_prices(current_date)
+        for d in self.dealers:
+            d.update_prices(prices)
+        self.mutualfund.update_prices(prices)
+        self.mutualfund.add_nav_to_history(j)
+        self.insuranceco.update_prices(prices)
+        self.bondmarket.print_last_prices(j)
+        temp_df = pd.DataFrame(self.bondmarket.price_history)
+        x = [np.array(temp_df.Date)]*5 
+        y = [temp_df.MM101, temp_df.MM102, temp_df.MM103, temp_df.MM104, temp_df.MM105]
+        for ix, line in enumerate(self.lines):
+            line.set_data(x[ix], y[ix])
+        return tuple(self.lines)
+
 
                     
+                        
+        
+        
 if __name__ == '__main__':
     
-    start = time.time()
-    print(start)
     #market_name = 'bondmarket1'
     #mutualfund_name = 'm1' 
     mm_share = 0.15
@@ -125,19 +153,11 @@ if __name__ == '__main__':
     #ic_bond=0.6
     #dealer_long=0.1
     #dealer_short=0.075
-    run_steps=240
+    run_steps=200
     #year=2003
     
-    # Write output to h5 file
-    h5filename='test.h5'
-    h5dir = 'C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\h5 files\\'
-    h5_file = '%s%s' % (h5dir, h5filename)
+    # Chart output prices
+    market1 = Charter(mm_share=mm_share, run_steps=run_steps)
     
-    market1 = Runner(mm_share=mm_share, run_steps=run_steps)
-    market1.bondmarket.last_prices_to_h5(h5_file)
-    market1.bondmarket.trades_to_h5(h5_file)
-    market1.mutualfund.nav_to_h5(h5_file)
-    
-    print('Run Time: %.2f seconds' % ((time.time() - start)))
 
-    
+
