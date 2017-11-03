@@ -11,7 +11,7 @@ class BondMarket(object):
     base class for bond market
     '''
     
-    def __init__(self, name):
+    def __init__(self, name, year):
         '''
         Initialize BondMarket with some base class attributes and a method
         
@@ -22,6 +22,8 @@ class BondMarket(object):
         self.trades = []
         self.last_prices = {}
         self.price_history = []
+        self.durations = []
+        self.yield_curve_p = self.load_yieldcurve_change(year)
         self.trade_sequence = 0
         
     def __repr__(self):
@@ -31,6 +33,32 @@ class BondMarket(object):
         price = self._price_bond(100, maturity, coupon, ytm, nper)
         self.bonds.append({'Name': name, 'Nominal': nominal, 'Maturity': maturity, 'Coupon': coupon, 'Yield': ytm, 'Price': price})
         self.last_prices[name] = price
+        
+    def add_durations(self):
+        self.durations = [self.get_duration(x['Nominal'], x['Maturity'], x['Coupon'], x['Yield'], 2) for x in self.bonds]
+        
+    def load_yieldcurve_change(self, inyear):
+        indf = pd.read_csv('../csv/yieldcurvep.csv', parse_dates=['DATE'])
+        indf = indf.assign(Year = [x.year for x in indf.DATE])
+        return np.array(indf[indf.Year==inyear][['YTM1p', 'YTM2p', 'YTM5p', 'YTM10p', 'YTM25p']])
+    
+    def update_eod_bond_price(self, step):
+        ytm_deltas = self.yield_curve_p[step]
+        old_prices = np.array(list(self.last_prices.values()))
+        new_prices = old_prices - (old_prices*self.durations*ytm_deltas)
+        names = [x['Name'] for x in self.bonds]
+        for j, bond in enumerate(names):
+            self.last_prices[bond] = new_prices[j]
+    
+    def get_duration(self, nominal, maturity, coupon, ytm, nper):
+        cash_flows = [nominal*coupon/nper]*(nper*maturity)
+        cash_flows[-1] += nominal
+        times = [0.5*j for j in range(1, len(cash_flows)+1)]
+        discounted_cf = np.array([pow(1+ytm/nper, -i*nper) for i in times])*cash_flows
+        price = np.sum(discounted_cf)
+        mac_duration = np.sum(times*discounted_cf/price)
+        mod_duration = mac_duration/(1+ytm/nper)
+        return mod_duration
         
     def _price_bond(self, nominal, maturity, coupon, ytm, nper):
         n = nper*maturity

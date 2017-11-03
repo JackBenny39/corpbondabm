@@ -18,7 +18,7 @@ class Charter(object):
                  mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.08, mm_target=0.05,
                  ic_name='i1', ic_bond=0.6, dealer_long=0.1, dealer_short=0.075, run_steps=252,
                  year=2003):
-        self.bondmarket = self.make_market(market_name)
+        self.bondmarket = self.make_market(market_name, year)
         self.mutualfund = self.make_mutual_fund(mm_name, mm_share, mm_lower, mm_upper, mm_target)
         self.insuranceco = self.make_insurance_co(ic_name, 1-mm_share, ic_bond, year)
         self.dealers, self.dealers_dict = self.make_dealers(dealer_long, dealer_short)
@@ -29,14 +29,15 @@ class Charter(object):
                                                init_func=self.setup_plot, interval=500, repeat=False, blit=True)
         self.show = plt.show()
         
-    def make_market(self, name):
+    def make_market(self, name, year):
         # allow user to specify as args?
-        bondmarket = BondMarket(name)
+        bondmarket = BondMarket(name, year)
         bondmarket.add_bond('MM101', 5000, 1, .0175, .015, 2)
         bondmarket.add_bond('MM102', 5000, 2, .025, .0175, 2)
         bondmarket.add_bond('MM103', 10000, 5, .0225, .025, 2)
         bondmarket.add_bond('MM104', 20000, 10, .024, .026, 2)
         bondmarket.add_bond('MM105', 10000, 25, .04, .0421, 2)
+        bondmarket.add_durations()
         return bondmarket
     
     def make_mutual_fund(self, name, share, ll, ul, target):
@@ -106,7 +107,7 @@ class Charter(object):
     def makefig(self):
         fig = plt.figure(figsize=(13,9))
         ax = fig.add_subplot(111)
-        ax.axis([PRIMER, self.run_steps, 95, 105])
+        ax.axis([PRIMER, self.run_steps, 90, 110])
         ax.set_xlabel('Date')
         ax.set_ylabel('Price')
         colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'Chartreuse', 'DarkRed']
@@ -135,6 +136,7 @@ class Charter(object):
                         self.dealers_dict[dealer_confirm['Dealer']].modify_portfolio(dealer_confirm)
                         buyside.modify_portfolio(buyside_confirm)
         # All agents get price updates from the bondmarket at the end of the day
+        self.bondmarket.update_eod_bond_price(j)
         prices = self.bondmarket.last_prices
         for d in self.dealers:
             d.update_prices(prices)
@@ -163,10 +165,10 @@ if __name__ == '__main__':
     #dealer_long=0.1
     #dealer_short=0.075
     run_steps=200
-    #year=2003
+    year=2016
     
     # Chart output prices
-    market1 = Charter(mm_share=mm_share, run_steps=run_steps)
+    market1 = Charter(mm_share=mm_share, run_steps=run_steps, year=year)
     
 
 

@@ -14,7 +14,7 @@ class Runner(object):
                  mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.08, mm_target=0.05,
                  ic_name='i1', ic_bond=0.6, dealer_long=0.1, dealer_short=0.075, run_steps=252,
                  year=2003):
-        self.bondmarket = self.make_market(market_name)
+        self.bondmarket = self.make_market(market_name, year)
         self.mutualfund = self.make_mutual_fund(mm_name, mm_share, mm_lower, mm_upper, mm_target)
         self.insuranceco = self.make_insurance_co(ic_name, 1-mm_share, ic_bond, year)
         self.dealers, self.dealers_dict = self.make_dealers(dealer_long, dealer_short)
@@ -22,14 +22,15 @@ class Runner(object):
         self.seed_mutual_fund(PRIMER)
         self.run_mcs(PRIMER)
         
-    def make_market(self, name):
+    def make_market(self, name, year):
         # allow user to specify as args?
-        bondmarket = BondMarket(name)
+        bondmarket = BondMarket(name, year)
         bondmarket.add_bond('MM101', 5000, 1, .0175, .015, 2)
         bondmarket.add_bond('MM102', 5000, 2, .025, .0175, 2)
         bondmarket.add_bond('MM103', 10000, 5, .0225, .025, 2)
         bondmarket.add_bond('MM104', 20000, 10, .024, .026, 2)
         bondmarket.add_bond('MM105', 10000, 25, .04, .0421, 2)
+        bondmarket.add_durations()
         return bondmarket
     
     def make_mutual_fund(self, name, share, ll, ul, target):
