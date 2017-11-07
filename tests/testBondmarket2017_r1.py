@@ -15,7 +15,6 @@ class TestBondmarket(unittest.TestCase):
         self.bondmarket.add_bond('MM103', 1000, 5, .0225, .025, 2)
         self.bondmarket.add_bond('MM104', 2000, 10, .024, .026, 2)
         self.bondmarket.add_bond('MM105', 1000, 25, .04, .0421, 2)
-        self.bondmarket.add_durations()
         
     def test_repr_BondMarket(self):
         self.assertEqual('BondMarket(bondmarket1)', '{0}'.format(self.bondmarket))
@@ -84,23 +83,18 @@ class TestBondmarket(unittest.TestCase):
         dealer_confirm, buyside_confirm = self.bondmarket.match_trade(quotes, step)
         self.assertDictEqual({'Dealer': 'd2', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell', 'Price': 99.8888}, dealer_confirm)
         self.assertDictEqual({'BuySide': 'm1', 'Size': 8, 'Bond': 'MM101', 'Side': 'sell', 'Price': 99.8888}, buyside_confirm)
-        
+      
     def test_update_eod_bond_price(self):
-        ytm_deltas = self.bondmarket.yield_curve_p[8]
-        old_prices = np.array(list(self.bondmarket.last_prices.values()))
-        durations = self.bondmarket.durations
-        new_prices = old_prices - (old_prices*durations*ytm_deltas)
+        for bond in self.bondmarket.bonds:
+            self.bondmarket.last_prices[bond['Name']] += 1.0
         self.bondmarket.update_eod_bond_price(8)
         new_bondmarket_prices = np.array(list(self.bondmarket.last_prices.values()))
-        self.assertTrue((new_prices == new_bondmarket_prices).all())
-        
-    def test_get_duration(self):
-        nominal = 100
-        maturity = 10
-        coupon = 0.05
-        ytm = 0.05
-        nper = 2
-        self.assertAlmostEqual(self.bondmarket.get_duration(nominal, maturity, coupon, ytm, nper), 7.7946, 4)
+        updated_bondmarket_prices = np.array([bond['Price'] for bond in self.bondmarket.bonds])
+        expected_prices = np.array([101.24725089, 102.468441831, 99.8341791171, 99.2514299988, 97.7771024019])
+        for i in range(5):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(new_bondmarket_prices[i], expected_prices[i], 6)
+                self.assertAlmostEqual(updated_bondmarket_prices[i], expected_prices[i], 6)
     
               
         

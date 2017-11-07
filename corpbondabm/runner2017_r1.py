@@ -6,12 +6,13 @@ from corpbondabm.bondmarket2017_r1 import BondMarket
 from corpbondabm.trader2017_r1 import MutualFund, InsuranceCo, Dealer
 
 TREYNOR_BOUNDS = [0.01, 0.0125]
+TREYNOR_FACTOR = 10000
 PRIMER = 8
 
 class Runner(object):
     
     def __init__(self, market_name='bondmarket1', 
-                 mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.08, mm_target=0.05,
+                 mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.07, mm_target=0.05,
                  ic_name='i1', ic_bond=0.6, dealer_long=0.1, dealer_short=0.075, run_steps=252,
                  year=2003):
         self.bondmarket = self.make_market(market_name, year)
@@ -25,12 +26,11 @@ class Runner(object):
     def make_market(self, name, year):
         # allow user to specify as args?
         bondmarket = BondMarket(name, year)
-        bondmarket.add_bond('MM101', 5000, 1, .0175, .015, 2)
-        bondmarket.add_bond('MM102', 5000, 2, .025, .0175, 2)
-        bondmarket.add_bond('MM103', 10000, 5, .0225, .025, 2)
-        bondmarket.add_bond('MM104', 20000, 10, .024, .026, 2)
-        bondmarket.add_bond('MM105', 10000, 25, .04, .0421, 2)
-        bondmarket.add_durations()
+        bondmarket.add_bond('MM101', 500000, 1, .0175, .015, 2)
+        bondmarket.add_bond('MM102', 500000, 2, .025, .0175, 2)
+        bondmarket.add_bond('MM103', 1000000, 5, .0225, .025, 2)
+        bondmarket.add_bond('MM104', 2000000, 10, .024, .026, 2)
+        bondmarket.add_bond('MM105', 1000000, 25, .04, .0421, 2)
         return bondmarket
     
     def make_mutual_fund(self, name, share, ll, ul, target):
@@ -46,6 +46,7 @@ class Runner(object):
         bond_value = m1.compute_portfolio_value()
         m1.cash = target*bond_value/(1-target)
         m1.add_nav_to_history(0)
+        #print('Mutual Fund Starting Cash: ', m1.cash)
         return m1
         
     def make_insurance_co(self, name, share, bond_weight, year):
@@ -68,7 +69,7 @@ class Runner(object):
             d_bond = {'Name': bond['Name'], 'Nominal': bond['Nominal'], 'Price': bond['Price'], 'Specialization': special[bond['Name']]}
             bond_list.append(bond['Name'])
             portfolio[bond['Name']] = d_bond
-        return Dealer(name, bond_list, portfolio, long_limit, short_limit, TREYNOR_BOUNDS)
+        return Dealer(name, bond_list, portfolio, long_limit, short_limit, TREYNOR_BOUNDS, TREYNOR_FACTOR)
     
     def make_dealers(self, ul, ll):
         # maybe pass these in as args - along with bond setup
@@ -103,6 +104,7 @@ class Runner(object):
                             self.dealers_dict[dealer_confirm['Dealer']].modify_portfolio(dealer_confirm)
                             buyside.modify_portfolio(buyside_confirm)
             # All agents get price updates from the bondmarket at the end of the day
+            self.bondmarket.update_eod_bond_price(current_date)
             prices = self.bondmarket.last_prices
             for d in self.dealers:
                 d.update_prices(prices)
@@ -127,17 +129,18 @@ if __name__ == '__main__':
     #dealer_long=0.1
     #dealer_short=0.075
     run_steps=240
-    #year=2003
+    year=2016
     
     # Write output to h5 file
     h5filename='test.h5'
     h5dir = 'C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\h5 files\\'
     h5_file = '%s%s' % (h5dir, h5filename)
     
-    market1 = Runner(mm_share=mm_share, run_steps=run_steps)
+    market1 = Runner(mm_share=mm_share, run_steps=run_steps, year=year)
     market1.bondmarket.last_prices_to_h5(h5_file)
     market1.bondmarket.trades_to_h5(h5_file)
     market1.mutualfund.nav_to_h5(h5_file)
+    
     
     print('Run Time: %.2f seconds' % ((time.time() - start)))
 

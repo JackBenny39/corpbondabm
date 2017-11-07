@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import scipy.optimize as optimize
 
 from math import pow
 
@@ -22,7 +23,6 @@ class BondMarket(object):
         self.trades = []
         self.last_prices = {}
         self.price_history = []
-        self.durations = []
         self.yield_curve_p = self.load_yieldcurve_change(year)
         self.trade_sequence = 0
         
@@ -34,31 +34,27 @@ class BondMarket(object):
         self.bonds.append({'Name': name, 'Nominal': nominal, 'Maturity': maturity, 'Coupon': coupon, 'Yield': ytm, 'Price': price})
         self.last_prices[name] = price
         
-    def add_durations(self):
-        self.durations = [self.get_duration(x['Nominal'], x['Maturity'], x['Coupon'], x['Yield'], 2) for x in self.bonds]
-        
     def load_yieldcurve_change(self, inyear):
         indf = pd.read_csv('../csv/yieldcurvep.csv', parse_dates=['DATE'])
         indf = indf.assign(Year = [x.year for x in indf.DATE])
         return np.array(indf[indf.Year==inyear][['YTM1p', 'YTM2p', 'YTM5p', 'YTM10p', 'YTM25p']])
     
-    def update_eod_bond_price(self, step):
-        ytm_deltas = self.yield_curve_p[step]
-        old_prices = np.array(list(self.last_prices.values()))
-        new_prices = old_prices - (old_prices*self.durations*ytm_deltas)
-        names = [x['Name'] for x in self.bonds]
-        for j, bond in enumerate(names):
-            self.last_prices[bond] = new_prices[j]
+    def bond_ytm(self, nominal, maturity, coupon, new_price, nper, guess):
+        nper = float(nper)
+        n = nper*maturity
+        payment = nominal*coupon/nper
+        ytm_func = lambda x: payment*(1-pow(1+(x/nper),-n))/(x/nper) + pow(1+(x/nper),-n)*nominal - new_price
+        return optimize.newton(ytm_func, guess)
     
-    def get_duration(self, nominal, maturity, coupon, ytm, nper):
-        cash_flows = [nominal*coupon/nper]*(nper*maturity)
-        cash_flows[-1] += nominal
-        times = [0.5*j for j in range(1, len(cash_flows)+1)]
-        discounted_cf = np.array([pow(1+ytm/nper, -i*nper) for i in times])*cash_flows
-        price = np.sum(discounted_cf)
-        mac_duration = np.sum(times*discounted_cf/price)
-        mod_duration = mac_duration/(1+ytm/nper)
-        return mod_duration
+    def update_eod_bond_price(self, step):
+        ytm_delta_ps = self.yield_curve_p[step]
+        for j, bond in enumerate(self.bonds):
+            #old_ytm = self.bond_ytm(100, bond['Maturity'], bond['Coupon'], self.last_prices[bond['Name']], 2, bond['Yield'])
+            #new_ytm = self.bond_ytm(100, bond['Maturity'], bond['Coupon'], self.last_prices[bond['Name']], 2, bond['Yield'])*(1+ytm_delta_ps[j])
+            bond['Yield'] = self.bond_ytm(100, bond['Maturity'], bond['Coupon'], self.last_prices[bond['Name']], 2, bond['Yield'])*(1+ytm_delta_ps[j])
+            new_price = self._price_bond(100, bond['Maturity'], bond['Coupon'], bond['Yield'], 2)
+            bond['Price'] = new_price
+            self.last_prices[bond['Name']] = new_price
         
     def _price_bond(self, nominal, maturity, coupon, ytm, nper):
         n = nper*maturity
@@ -102,6 +98,7 @@ class BondMarket(object):
         
     def match_trade(self, quotes, step):
         # if side is buy, dealer is quoting ask prices
+        quotes = [q for q in quotes if q]
         side = quotes[0]['side']
         prices = [quotes[i]['price'] for i in range(0,len(quotes))]
         best_price = np.min(prices) if side == 'buy' else np.max(prices)

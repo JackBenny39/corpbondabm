@@ -10,6 +10,7 @@ from corpbondabm.bondmarket2017_r1 import BondMarket
 from corpbondabm.trader2017_r1 import MutualFund, InsuranceCo, Dealer
 
 TREYNOR_BOUNDS = [0.01, 0.0125]
+TREYNOR_FACTOR = 10000
 PRIMER = 8
 
 class Charter(object):
@@ -32,12 +33,11 @@ class Charter(object):
     def make_market(self, name, year):
         # allow user to specify as args?
         bondmarket = BondMarket(name, year)
-        bondmarket.add_bond('MM101', 5000, 1, .0175, .015, 2)
-        bondmarket.add_bond('MM102', 5000, 2, .025, .0175, 2)
-        bondmarket.add_bond('MM103', 10000, 5, .0225, .025, 2)
-        bondmarket.add_bond('MM104', 20000, 10, .024, .026, 2)
-        bondmarket.add_bond('MM105', 10000, 25, .04, .0421, 2)
-        bondmarket.add_durations()
+        bondmarket.add_bond('MM101', 500000, 1, .0175, .015, 2)
+        bondmarket.add_bond('MM102', 500000, 2, .025, .0175, 2)
+        bondmarket.add_bond('MM103', 1000000, 5, .0225, .025, 2)
+        bondmarket.add_bond('MM104', 2000000, 10, .024, .026, 2)
+        bondmarket.add_bond('MM105', 1000000, 25, .04, .0421, 2)
         return bondmarket
     
     def make_mutual_fund(self, name, share, ll, ul, target):
@@ -75,7 +75,7 @@ class Charter(object):
             d_bond = {'Name': bond['Name'], 'Nominal': bond['Nominal'], 'Price': bond['Price'], 'Specialization': special[bond['Name']]}
             bond_list.append(bond['Name'])
             portfolio[bond['Name']] = d_bond
-        return Dealer(name, bond_list, portfolio, long_limit, short_limit, TREYNOR_BOUNDS)
+        return Dealer(name, bond_list, portfolio, long_limit, short_limit, TREYNOR_BOUNDS, TREYNOR_FACTOR)
     
     def make_dealers(self, ul, ll):
         # maybe pass these in as args - along with bond setup
@@ -107,7 +107,7 @@ class Charter(object):
     def makefig(self):
         fig = plt.figure(figsize=(13,9))
         ax = fig.add_subplot(111)
-        ax.axis([PRIMER, self.run_steps, 90, 110])
+        ax.axis([PRIMER, self.run_steps, 96, 104])
         ax.set_xlabel('Date')
         ax.set_ylabel('Price')
         colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'Chartreuse', 'DarkRed']
@@ -164,7 +164,7 @@ if __name__ == '__main__':
     #ic_bond=0.6
     #dealer_long=0.1
     #dealer_short=0.075
-    run_steps=200
+    run_steps=240
     year=2016
     
     # Chart output prices

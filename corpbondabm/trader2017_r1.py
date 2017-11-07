@@ -5,7 +5,7 @@ import pandas as pd
 ALPHA = 0.00017
 BETA_D = 0.56
 BETA_D1 = -0.0002
-BETA_W = 0.6
+BETA_W = 0.60
 BETA_W1 = -0.0002
 
 
@@ -80,24 +80,27 @@ class MutualFund(BuySide):
         #return dict(zip(self.bond_list, weights))
     
     def add_nav_to_history(self, step):
-        nav = self.compute_portfolio_value() + self.cash
-        self.nav_history[step] = nav
+        bond_value = self.compute_portfolio_value()
+        cash = self.cash
+        nav = bond_value + cash
+        self.nav_history[step] = {'Step': step, 'BondValue': bond_value, 'Cash': cash, 'NAV': nav}
     
     def compute_flow(self, step):
-        wealth_lag1 = self.nav_history[step-1]
-        retdaily_lag1 = wealth_lag1/self.nav_history[step-2] - 1
-        retweekly_lag1 = wealth_lag1/self.nav_history[step-6] - 1
-        flow_ratio = ALPHA + (BETA_D + BETA_D1*(retdaily_lag1<0))*retdaily_lag1 + (BETA_W + BETA_W1*(retweekly_lag1<0))*retweekly_lag1
-        return flow_ratio*wealth_lag1
+        bv_lag1 = self.nav_history[step-1]['BondValue']
+        retdaily_lag1 = bv_lag1/self.nav_history[step-2]['BondValue'] - 1
+        retweekly_lag1 = bv_lag1/self.nav_history[step-6]['BondValue'] - 1
+        flow_ratio = ALPHA + BETA_D*retdaily_lag1 + BETA_D1*(retdaily_lag1<0) + BETA_W*retweekly_lag1 + BETA_W1*(retweekly_lag1<0)
+        #print('Step: ', step, 'Flow Ratio: ', flow_ratio, 'Ret Daily; ', retdaily_lag1, 'Ret Weekly: ', retweekly_lag1)
+        return flow_ratio*bv_lag1
     
     def modify_portfolio(self, confirm):
         bond = confirm['Bond']
         if confirm['Side'] == 'buy':
             self.portfolio[bond]['Nominal'] += confirm['Size']
-            self.cash -= confirm['Size']*confirm['Price']
+            self.cash -= confirm['Size']*confirm['Price']/100
         else:
             self.portfolio[bond]['Nominal'] -= confirm['Size']
-            self.cash += confirm['Size']*confirm['Price']
+            self.cash += confirm['Size']*confirm['Price']/100
         self.portfolio[bond]['Price'] = confirm['Price']
             
     def make_portfolio_decision(self, step):
@@ -115,18 +118,22 @@ class MutualFund(BuySide):
         2. Selling cannot
         '''
         self.rfq_collector.clear()
-        last_nav = self.nav_history[step-1]
+        last_nav = self.nav_history[step-1]['NAV']
         expected_cash = self.compute_flow(step)
-        expected_cash_pct = (self.cash + expected_cash)/(last_nav + expected_cash)
+        expected_nav = last_nav + expected_cash
+        #print('InMF: ', 'Step: ', step, 'Expected Cash: ', expected_cash)
+        expected_cash_pct = (self.cash + expected_cash)/(expected_nav)
+        #print('InMF: ', 'Step: ', step, 'Expected Cash %: ', expected_cash_pct)
         if expected_cash_pct < self.lower_bound or expected_cash_pct > self.upper_bound:
+            #print(step, ':', 'Transaction')
             nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
             xprices = np.array([self.portfolio[x]['Price']/100 for x in self.bond_list])
-            expected_nav = last_nav + expected_cash
             target_nominal_value = (1 - self.target)*expected_nav
             target_nominals = self.index_weight_array * target_nominal_value
             diffs = target_nominals - nominals
             expected_amounts = diffs*xprices
             if expected_cash_pct < self.lower_bound:
+                #print(step, ':', 'SELL')
                 side = 'sell'
                 target_sell_amount = self.target*expected_nav - self.cash
                 expected_sell_sum = np.abs(np.sum(expected_amounts[expected_amounts<0]))
@@ -136,6 +143,7 @@ class MutualFund(BuySide):
                     if final_sizes[i] <= -1.0:
                         self.make_rfq(bond, side, np.abs(np.round(final_sizes[i],0)))
             elif expected_cash_pct > self.upper_bound:
+                #print(step, ':', 'BUY')
                 side = 'buy'
                 target_buy_amount = (self.cash + expected_cash) - self.target*expected_nav
                 expected_buy_sum = np.abs(np.sum(expected_amounts[expected_amounts>0]))
@@ -144,11 +152,10 @@ class MutualFund(BuySide):
                 for i,bond in enumerate(self.bond_list):
                     if final_sizes[i] >= 1.0:
                         self.make_rfq(bond, side, np.abs(np.round(final_sizes[i],0)))
+        self.cash += expected_cash
     
     def nav_to_h5(self, filename):
-        indate = [k for k in self.nav_history.keys()]
-        nav = [v for v in self.nav_history.values()]
-        df = pd.DataFrame({'Date': indate, 'NAV': nav})
+        df = pd.DataFrame([v for v in self.nav_history.values()])
         df.to_hdf(filename, 'nav', append=True, format='table', complevel=5, complib='blosc')
  
         
@@ -177,10 +184,10 @@ class InsuranceCo(BuySide):
         bond = confirm['Bond']
         if confirm['Side'] == 'buy':
             self.portfolio[bond]['Nominal'] += confirm['Size']
-            self.equity -= confirm['Size']*confirm['Price']
+            self.equity -= confirm['Size']*confirm['Price']/100
         else:
             self.portfolio[bond]['Nominal'] -= confirm['Size']
-            self.equity += confirm['Size']*confirm['Price']
+            self.equity += confirm['Size']*confirm['Price']/100
         self.portfolio[bond]['Price'] = confirm['Price']
             
     def make_equity_returns(self, inyear):
@@ -202,12 +209,14 @@ class InsuranceCo(BuySide):
         self.equity *= (1+self.equity_returns[step-1])
         bond_value = self.compute_portfolio_value()
         portfolio_value = self.equity+bond_value
-        bond_diff = bond_value - self.bond_weight_target*portfolio_value
-        if np.abs(bond_diff) >= 1.0:
-            side = 'sell' if bond_diff >= 1.0 else 'buy'
-            bond = self.bond_list[np.random.randint(0, len(self.bond_list))]
-            bond_price = self.portfolio[bond]['Price']/100
-            self.make_rfq(bond, side, np.abs(np.round(bond_diff/bond_price,0)))
+        equity_percent = self.equity/portfolio_value
+        if equity_percent < 0.395 or equity_percent > 0.405:
+            bond_diff = bond_value - self.bond_weight_target*portfolio_value
+            if np.abs(bond_diff) >= 1.0:
+                side = 'sell' if bond_diff >= 1.0 else 'buy'
+                bond = self.bond_list[np.random.randint(0, len(self.bond_list))]
+                bond_price = self.portfolio[bond]['Price']/100
+                self.make_rfq(bond, side, np.abs(np.round(bond_diff/bond_price,0)))
     
     
 class HedgeFund(BuySide):
@@ -240,7 +249,7 @@ class Dealer(object):
        outside spread and inventory range
     '''
     
-    def __init__(self, name, bond_list, portfolio, long_limit, short_limit, bounds):
+    def __init__(self, name, bond_list, portfolio, long_limit, short_limit, bounds, spread_factor):
         '''
         Initialize Dealer with some base class attributes and a method
         
@@ -252,6 +261,7 @@ class Dealer(object):
         self.portfolio = portfolio
         self.lower_bound = bounds[0]
         self.upper_bound = bounds[1]
+        self.spread_factor = spread_factor
         self.update_limits(long_limit, short_limit)
         
     def __repr__(self):
@@ -271,9 +281,9 @@ class Dealer(object):
         bond = confirm['Bond']
         # if confirm order to sell, dealer buys and increases inventory
         if confirm['Side'] == 'buy':
-            self.portfolio[bond]['Nominal'] -= confirm['Size']
+            self.portfolio[bond]['Quantity'] -= confirm['Size']
         else:
-            self.portfolio[bond]['Nominal'] += confirm['Size']
+            self.portfolio[bond]['Quantity'] += confirm['Size']
         self.portfolio[bond]['Price'] = confirm['Price']
             
     def make_quote(self, rfq):
@@ -286,7 +296,8 @@ class Dealer(object):
         bond_price = self.portfolio[bond]['Price']
         outside_spread = (self.upper_bound + self.lower_bound)*bond_price
         inventory_range = upper_limit - lower_limit
-        inside_spread = 10*outside_spread/inventory_range
+        # Treynor Standard Accommodation = 10000 (i.e., $10 Million - Nominal)
+        inside_spread = self.spread_factor*outside_spread/inventory_range
         # if incoming order to sell, dealer buys and increases inventory
         size = amount if side == 'sell' else -amount
         expected_inventory = self.portfolio[bond]['Quantity'] + size
