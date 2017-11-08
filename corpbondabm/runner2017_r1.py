@@ -105,6 +105,8 @@ class Runner(object):
                             buyside.modify_portfolio(buyside_confirm)
             # All agents get price updates from the bondmarket at the end of the day
             self.bondmarket.update_eod_bond_price(current_date)
+            if current_date == 50:
+                self.bondmarket.shock_ytm(0.01)
             prices = self.bondmarket.last_prices
             for d in self.dealers:
                 d.update_prices(prices)

@@ -27,7 +27,7 @@ class Charter(object):
         self.seed_mutual_fund(PRIMER)
         self.fig, self.ax, self.lines, = self.makefig()
         self.animate = animation.FuncAnimation(self.fig, self.run_mcs_chart, np.arange(PRIMER, self.run_steps, 1),
-                                               init_func=self.setup_plot, interval=500, repeat=False, blit=True)
+                                               init_func=self.setup_plot, interval=200, repeat=False, blit=True)
         self.show = plt.show()
         
     def make_market(self, name, year):
@@ -49,7 +49,7 @@ class Charter(object):
             mm_bond = {'Name': bond['Name'], 'Nominal': share*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = mm_bond
-        m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights)
+        m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights, 100000)
         bond_value = m1.compute_portfolio_value()
         m1.cash = target*bond_value/(1-target)
         m1.add_nav_to_history(0)
@@ -107,7 +107,7 @@ class Charter(object):
     def makefig(self):
         fig = plt.figure(figsize=(13,9))
         ax = fig.add_subplot(111)
-        ax.axis([PRIMER, self.run_steps, 96, 104])
+        ax.axis([PRIMER, self.run_steps, 56, 104])
         ax.set_xlabel('Date')
         ax.set_ylabel('Price')
         colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'Chartreuse', 'DarkRed']
@@ -137,6 +137,8 @@ class Charter(object):
                         buyside.modify_portfolio(buyside_confirm)
         # All agents get price updates from the bondmarket at the end of the day
         self.bondmarket.update_eod_bond_price(j)
+        if j == 15:
+            self.bondmarket.shock_ytm(0.01)
         prices = self.bondmarket.last_prices
         for d in self.dealers:
             d.update_prices(prices)
@@ -164,7 +166,7 @@ if __name__ == '__main__':
     #ic_bond=0.6
     #dealer_long=0.1
     #dealer_short=0.075
-    run_steps=240
+    run_steps=35
     year=2016
     
     # Chart output prices

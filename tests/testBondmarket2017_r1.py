@@ -95,6 +95,13 @@ class TestBondmarket(unittest.TestCase):
             with self.subTest(i=i):
                 self.assertAlmostEqual(new_bondmarket_prices[i], expected_prices[i], 6)
                 self.assertAlmostEqual(updated_bondmarket_prices[i], expected_prices[i], 6)
+                
+    def test_shock_ytm(self):
+        old_rates = np.array([bond['Yield'] for bond in self.bondmarket.bonds])
+        self.bondmarket.shock_ytm(0.01)
+        new_rates = np.array([bond['Yield'] for bond in self.bondmarket.bonds])
+        diff_rates = new_rates - (old_rates + 0.01)
+        self.assertFalse(diff_rates.all())
     
               
         

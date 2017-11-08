@@ -40,7 +40,7 @@ class TestTrader(unittest.TestCase):
             
         self.b1 = BuySide('b1', bond_list, mm_portfolio)
             
-        self.m1 = MutualFund('m1', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights)
+        self.m1 = MutualFund('m1', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights, 100)
         bond_value = self.m1.compute_portfolio_value()
         self.m1.cash = self.m1.target*bond_value/(1-self.m1.target)
         self.m1.add_nav_to_history(0)
@@ -89,17 +89,17 @@ class TestTrader(unittest.TestCase):
         prices = {'MM101': 100, 'MM102': 100, 'MM103': 100, 'MM104': 100, 'MM105': 100}
         self.m1.update_prices(prices)
         self.m1.add_nav_to_history(1)
-        self.assertDictEqual(self.m1.nav_history[1], {'Step': 1, 'BondValue': 750.0, 'Cash': 38.9178220025832, 'NAV': 788.91782200258319})
+        self.assertDictEqual(self.m1.nav_history[1], {'Step': 1, 'BondValue': 750.0, 'Cash': 38.9178220025832, 'NAV': 788.91782200258319, 'NAVPerShare': 7.8891782200258316})
           
     def test_compute_flow(self):
-        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 100, 'Cash': 0, 'NAV': 0}
-        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 100, 'Cash': 0, 'NAV': 0}
-        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 101, 'Cash': 0, 'NAV': 0}
+        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 100, 'Cash': 0, 'NAV': 100, 'NAVPerShare': 10}
+        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 100, 'Cash': 0, 'NAV': 100, 'NAVPerShare': 10}
+        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 101, 'Cash': 0, 'NAV': 101, 'NAVPerShare': 10.1}
         flow = self.m1.compute_flow(7)
         self.assertAlmostEqual(flow, 1.1888, 4)
-        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 100, 'Cash': 0, 'NAV': 0}
-        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 100, 'Cash': 0, 'NAV': 0}
-        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 95, 'Cash': 0, 'NAV': 0}
+        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 100, 'Cash': 0, 'NAV': 100, 'NAVPerShare': 10}
+        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 100, 'Cash': 0, 'NAV': 100, 'NAVPerShare': 10}
+        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 95, 'Cash': 0, 'NAV': 95, 'NAVPerShare': 9.5}
         flow = self.m1.compute_flow(7)
         self.assertAlmostEqual(flow, -5.53185, 4)
         
@@ -120,54 +120,44 @@ class TestTrader(unittest.TestCase):
     def test_make_portfolio_decisionMF(self):
         prices = {'MM101': 101, 'MM102': 98, 'MM103': 95, 'MM104': 105, 'MM105': 100}
         self.m1.update_prices(prices)
-        # Do nothing: index doesn't change cash between limits
-        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 100, 'Cash': 0, 'NAV': 750}
-        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 100, 'Cash': 0, 'NAV': 750}
-        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 100, 'Cash': 0, 'NAV': 750}
+        # Do nothing: NAV doesn't change; cash between limits
+        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 720, 'Cash': 30, 'NAV': 750, 'NAVPerShare': 75}
+        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 720, 'Cash': 30, 'NAV': 750, 'NAVPerShare': 75}
+        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 720, 'Cash': 30, 'NAV': 750, 'NAVPerShare': 75}
         self.m1.cash = 30
-        self.m1.portfolio['MM101']['Nominal'] = 73
-        self.m1.portfolio['MM102']['Nominal'] = 72
-        self.m1.portfolio['MM103']['Nominal'] = 145
-        self.m1.portfolio['MM104']['Nominal'] = 285
-        self.m1.portfolio['MM105']['Nominal'] = 137.5
+        self.m1.shares = 10
         self.m1.make_portfolio_decision(7)
         self.assertFalse(self.m1.rfq_collector)
-        # Sell some: index decline, low on cash
-        self.m1.nav_history[1]['NAV'] = 750
-        self.m1.nav_history[5]['NAV'] = 750
-        self.m1.nav_history[6]['NAV'] = 737.5
+        # Sell some: NAV decline, low on cash
+        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 720, 'Cash': 30, 'NAV': 750, 'NAVPerShare': 75}
+        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 720, 'Cash': 30, 'NAV': 750, 'NAVPerShare': 75}
+        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 712.5, 'Cash': 25, 'NAV': 737.5, 'NAVPerShare': 73.75}
         self.m1.cash = 25
-        self.m1.portfolio['MM101']['Nominal'] = 73
-        self.m1.portfolio['MM102']['Nominal'] = 72
-        self.m1.portfolio['MM103']['Nominal'] = 145
-        self.m1.portfolio['MM104']['Nominal'] = 285
-        self.m1.portfolio['MM105']['Nominal'] = 137.5
+        self.m1.shares = 10
         self.m1.make_portfolio_decision(7)
         expected = [
-                    {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 2.0},
-                    {'order_id': 'm1_2', 'name': 'MM102', 'side': 'sell', 'amount': 1.0},
-                    {'order_id': 'm1_3', 'name': 'MM103', 'side': 'sell', 'amount': 3.0},
-                    {'order_id': 'm1_4', 'name': 'MM104', 'side': 'sell', 'amount': 4.0}
+                    {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 3.0},
+                    {'order_id': 'm1_2', 'name': 'MM102', 'side': 'sell', 'amount': 3.0},
+                    {'order_id': 'm1_3', 'name': 'MM103', 'side': 'sell', 'amount': 5.0},
+                    {'order_id': 'm1_4', 'name': 'MM104', 'side': 'sell', 'amount': 10.0},
+                    {'order_id': 'm1_5', 'name': 'MM105', 'side': 'sell', 'amount': 5.0}
                     ]
         for i in range(len(self.m1.rfq_collector)):
             with self.subTest(i=i):
                 self.assertDictEqual(self.m1.rfq_collector[i], expected[i])
         # Buy some: index increase, extra cash
-        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 100, 'Cash': 0, 'NAV': 750}
-        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 100, 'Cash': 0, 'NAV': 750}
-        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 100, 'Cash': 0, 'NAV': 767.5}
+        self.m1.nav_history[1] = {'Step': 1, 'BondValue': 700, 'Cash': 50, 'NAV': 750, 'NAVPerShare': 75}
+        self.m1.nav_history[5] = {'Step': 5, 'BondValue': 700, 'Cash': 50, 'NAV': 750, 'NAVPerShare': 75}
+        self.m1.nav_history[6] = {'Step': 6, 'BondValue': 717.5, 'Cash': 50, 'NAV': 767.5, 'NAVPerShare': 76.75}
         self.m1.cash = 50
-        self.m1.portfolio['MM101']['Nominal'] = 68
-        self.m1.portfolio['MM102']['Nominal'] = 79
-        self.m1.portfolio['MM103']['Nominal'] = 138
-        self.m1.portfolio['MM104']['Nominal'] = 293
-        self.m1.portfolio['MM105']['Nominal'] = 139.5
+        self.m1.shares = 10
         self.m1.make_portfolio_decision(7)
         expected = [
-                    {'order_id': 'm1_5', 'name': 'MM101', 'side': 'buy', 'amount': 6.0},
-                    {'order_id': 'm1_6', 'name': 'MM103', 'side': 'buy', 'amount': 10.0},
-                    {'order_id': 'm1_7', 'name': 'MM104', 'side': 'buy', 'amount': 6.0},
-                    {'order_id': 'm1_8', 'name': 'MM105', 'side': 'buy', 'amount': 9.0}
+                    {'order_id': 'm1_6', 'name': 'MM101', 'side': 'buy', 'amount': 3.0},
+                    {'order_id': 'm1_7', 'name': 'MM102', 'side': 'buy', 'amount': 3.0},
+                    {'order_id': 'm1_8', 'name': 'MM103', 'side': 'buy', 'amount': 7.0},
+                    {'order_id': 'm1_9', 'name': 'MM104', 'side': 'buy', 'amount': 12.0},
+                    {'order_id': 'm1_10', 'name': 'MM105', 'side': 'buy', 'amount': 6.0}
                     ]
         for i in range(len(self.m1.rfq_collector)):
             with self.subTest(i=i):

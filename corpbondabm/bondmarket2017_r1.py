@@ -63,6 +63,13 @@ class BondMarket(object):
         discount = pow(1+rate,-n)
         return payment*(1-discount)/rate + discount*nominal
     
+    def shock_ytm(self, shock):
+        for bond in self.bonds:
+            bond['Yield'] += shock
+            new_price = self._price_bond(100, bond['Maturity'], bond['Coupon'], bond['Yield'], 2)
+            bond['Price'] = new_price
+            self.last_prices[bond['Name']] = new_price
+    
     def compute_weights_from_price(self):
         prices = np.array([x['Price']*x['Nominal']/100 for x in self.bonds])
         market_value = np.sum(prices)
