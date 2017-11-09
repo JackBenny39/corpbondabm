@@ -39,16 +39,9 @@ class TestTrader(unittest.TestCase):
             d_portfolio[bond['Name']] = d_bond
             
         self.b1 = BuySide('b1', bond_list, mm_portfolio)
-            
         self.m1 = MutualFund('m1', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights, 100)
-        bond_value = self.m1.compute_portfolio_value()
-        self.m1.cash = self.m1.target*bond_value/(1-self.m1.target)
-        self.m1.add_nav_to_history(0)
-        
-        self.i1 = InsuranceCo('i1', 1-IC_EQUITY, bond_list, ic_portfolio, 2003)
-        bond_value = self.i1.compute_portfolio_value()
-        self.i1.equity = IC_EQUITY*bond_value/(1-IC_EQUITY)
-        
+        self.i1 = InsuranceCo('i1', IC_EQUITY, bond_list, ic_portfolio, 2003)
+
         self.h1 = HedgeFund('h1', bond_list, mm_portfolio) # use MF portfolio for now
         
         self.d1 = Dealer('d1', bond_list, d_portfolio, 0.1, 0.075, TREYNOR_BOUNDS, TREYNOR_FACTOR)

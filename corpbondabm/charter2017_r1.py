@@ -27,7 +27,7 @@ class Charter(object):
         self.seed_mutual_fund(PRIMER)
         self.fig, self.ax, self.lines, = self.makefig()
         self.animate = animation.FuncAnimation(self.fig, self.run_mcs_chart, np.arange(PRIMER, self.run_steps, 1),
-                                               init_func=self.setup_plot, interval=200, repeat=False, blit=True)
+                                               init_func=self.setup_plot, interval=100, repeat=False, blit=True)
         self.show = plt.show()
         
     def make_market(self, name, year):
@@ -50,9 +50,6 @@ class Charter(object):
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = mm_bond
         m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights, 100000)
-        bond_value = m1.compute_portfolio_value()
-        m1.cash = target*bond_value/(1-target)
-        m1.add_nav_to_history(0)
         return m1
         
     def make_insurance_co(self, name, share, bond_weight, year):
@@ -63,9 +60,7 @@ class Charter(object):
             ic_bond = {'Name': bond['Name'], 'Nominal': share*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = ic_bond
-        i1 = InsuranceCo(name, bond_weight, bond_list, portfolio, year)
-        bond_value = i1.compute_portfolio_value()
-        i1.equity = (1-bond_weight)*bond_value/bond_weight
+        i1 = InsuranceCo(name, 1-bond_weight, bond_list, portfolio, year)
         return i1
     
     def make_dealer(self, name, special, long_limit, short_limit):
@@ -89,7 +84,8 @@ class Charter(object):
     def make_buyside(self):
         buyside = np.array([self.insuranceco, self.mutualfund])
         np.random.shuffle(buyside)
-        return buyside
+        #return buyside
+        return np.array([self.mutualfund])
 
     def seed_mutual_fund(self, prime1):
         for current_date in range(prime1):
@@ -107,7 +103,7 @@ class Charter(object):
     def makefig(self):
         fig = plt.figure(figsize=(13,9))
         ax = fig.add_subplot(111)
-        ax.axis([PRIMER, self.run_steps, 56, 104])
+        ax.axis([PRIMER, self.run_steps, 80, 104])
         ax.set_xlabel('Date')
         ax.set_ylabel('Price')
         colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'Chartreuse', 'DarkRed']
@@ -137,7 +133,7 @@ class Charter(object):
                         buyside.modify_portfolio(buyside_confirm)
         # All agents get price updates from the bondmarket at the end of the day
         self.bondmarket.update_eod_bond_price(j)
-        if j == 15:
+        if j == 50:
             self.bondmarket.shock_ytm(0.01)
         prices = self.bondmarket.last_prices
         for d in self.dealers:
@@ -158,7 +154,7 @@ if __name__ == '__main__':
     
     #market_name = 'bondmarket1'
     #mutualfund_name = 'm1' 
-    mm_share = 0.15
+    mm_share = 0.25
     #mm_lower = 0.03
     #mm_upper = 0.08
     #mm_target = 0.05
@@ -166,7 +162,7 @@ if __name__ == '__main__':
     #ic_bond=0.6
     #dealer_long=0.1
     #dealer_short=0.075
-    run_steps=35
+    run_steps=240
     year=2016
     
     # Chart output prices

@@ -63,16 +63,20 @@ class MutualFund(BuySide):
         self.upper_bound = upper_bound
         self.target = target
         self.nav_history = {}
-        self.cash = 0
         self.shares = shares
-        self.index_weights = weights
-        self.index_weight_array = self.make_weight_array()
+        self.index_weight_array = self.make_weight_array(weights)
+        self.setup_portfolio()
         
     def __repr__(self):
         return 'BuySide({0}, {1})'.format(self._trader_id, self.trader_type)
     
-    def make_weight_array(self):
-        return np.array([self.index_weights[x] for x in self.bond_list])
+    def setup_portfolio(self):
+        bond_value = self.compute_portfolio_value()
+        self.cash = self.target*bond_value/(1-self.target)
+        self.add_nav_to_history(0)
+    
+    def make_weight_array(self, weights):
+        return np.array([weights[x] for x in self.bond_list])
     
     #def compute_weights_from_nominal(self):
         #nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
@@ -81,18 +85,22 @@ class MutualFund(BuySide):
         #return dict(zip(self.bond_list, weights))
     
     def add_nav_to_history(self, step):
+        # First compute the bond value, previous cash + cash from transactions and nav per share with existing shares
         bond_value = self.compute_portfolio_value()
         cash = self.cash
         nav = bond_value + cash
         nav_per_share = nav/self.shares
         self.nav_history[step] = {'Step': step, 'BondValue': bond_value, 'Cash': cash, 'NAV': nav, 'NAVPerShare': nav_per_share}
+        # Then compute the cash inflow during the day, add to cash and buy/sell shares at the previously computed nav per share
+        expected_cash_flow = self.compute_flow(step) if step >= 8 else 0
+        self.cash += expected_cash_flow
+        self.shares += expected_cash_flow/nav_per_share
         
     def compute_flow(self, step):
         nav_lag1 = self.nav_history[step-1]['NAVPerShare']
         retdaily_lag1 = nav_lag1/self.nav_history[step-2]['NAVPerShare'] - 1
         retweekly_lag1 = nav_lag1/self.nav_history[step-6]['NAVPerShare'] - 1
         flow_ratio = ALPHA + BETA_D*retdaily_lag1 + BETA_D1*(retdaily_lag1<0) + BETA_W*retweekly_lag1 + BETA_W1*(retweekly_lag1<0)
-        print('Step: ', step, 'Flow Ratio: ', flow_ratio, 'Ret Daily; ', retdaily_lag1, 'Ret Weekly: ', retweekly_lag1)
         return flow_ratio*self.nav_history[step-1]['NAV']
     
     def modify_portfolio(self, confirm):
@@ -120,43 +128,29 @@ class MutualFund(BuySide):
         2. Selling cannot
         '''
         self.rfq_collector.clear()
-        #last_nav = self.nav_history[step-1]['NAV']
-        print('InMF: ', 'Step: ', step, 'Starting Shares: ', self.shares)
         expected_cash_flow = self.compute_flow(step)
         expected_cash_position = self.cash + expected_cash_flow
         expected_nav = self.nav_history[step-1]['BondValue'] + expected_cash_position
-        print('InMF: ', 'Step: ', step, 'Expected Cash Flow: ', expected_cash_flow)
-        print('InMF: ', 'Step: ', step, 'Expected Cash Position: ', expected_cash_position)
-        print('InMF: ', 'Step: ', step, 'Expected NAV: ', expected_nav)
-        print('InMF: ', 'Step: ', step, 'Previous Night Bond Value: ', self.nav_history[step-1]['BondValue'])
-        print('InMF: ', 'Step: ', step, 'Previous Night Cash: ', self.nav_history[step-1]['Cash'])
-        print('InMF: ', 'Step: ', step, 'Previous Night NAV: ', self.nav_history[step-1]['NAV'])
         if expected_cash_position < self.lower_bound*expected_nav or expected_cash_position > self.upper_bound*expected_nav:
-            #print(step, ':', 'Transaction')
             target_cash = self.target * expected_nav
             cash_to_raise = target_cash - expected_cash_position
             xprices = np.array([self.portfolio[x]['Price']/100 for x in self.bond_list])
-            weights = self.index_weight_array
-            sizes = np.abs(np.round(weights*cash_to_raise/xprices,0))
-            print('InMF: ', 'Step: ', step, 'Target (5%) Cash: ', target_cash)
-            print('InMF: ', 'Step: ', step, 'Cash to Raise: ', cash_to_raise)
-            print('InMF: ', 'Step: ', step, 'Bond Prices: ', xprices)
-            print('InMF: ', 'Step: ', step, 'Nominal Weights: ', weights)
-            print('InMF: ', 'Step: ', step, 'RFQ Sizes: ', sizes)
+            sizes = np.abs(np.round(self.index_weight_array*cash_to_raise/xprices,0))
             if expected_cash_position < self.lower_bound*expected_nav:
-                print(step, ':', 'SELL')
                 side = 'sell'
             elif expected_cash_position > self.upper_bound*expected_nav:
-                print(step, ':', 'BUY')
                 side = 'buy'
             for i,bond in enumerate(self.bond_list):
                 if sizes[i] >= 1.0:
                     self.make_rfq(bond, side, sizes[i])
-            print('InMF: ', 'Step: ', step, 'RFQ: ', self.rfq_collector)
-        self.cash += expected_cash_flow
-        print('InMF: ', 'Step: ', step, 'Ending Cash: ', self.cash)
-        self.shares += expected_cash_flow/self.nav_history[step-1]['NAVPerShare']
-        print('InMF: ', 'Step: ', step, 'Ending Shares: ', self.shares)
+            
+            
+            
+            
+        #self.cash += expected_cash_flow
+        #print('InMF: ', 'Step: ', step, 'Ending Cash: ', self.cash)
+        #self.shares += expected_cash_flow/self.nav_history[step-1]['NAVPerShare']
+        #print('InMF: ', 'Step: ', step, 'Ending Shares: ', self.shares)
     
     def nav_to_h5(self, filename):
         df = pd.DataFrame([v for v in self.nav_history.values()])
@@ -169,7 +163,7 @@ class InsuranceCo(BuySide):
         
         
     '''
-    def __init__(self, name, bond_weight_target, bond_list, portfolio, year):
+    def __init__(self, name, equity_weight_target, bond_list, portfolio, year):
         '''
         Initialize InsuranceCo
         
@@ -177,12 +171,15 @@ class InsuranceCo(BuySide):
         '''
         BuySide.__init__(self, name, bond_list, portfolio)
         self.trader_type = 'InsuranceCo'
-        self.equity = 0
-        self.bond_weight_target = bond_weight_target
+        self.bond_weight_target = 1 - equity_weight_target
         self.equity_returns = self.make_equity_returns(year)
+        self.equity = self.setup_portfolio(equity_weight_target)
         
     def __repr__(self):
         return 'BuySide({0}, {1})'.format(self._trader_id, self.trader_type)
+    
+    def setup_portfolio(self, equity_weight):
+        return equity_weight*self.compute_portfolio_value()/(1-equity_weight)
     
     def modify_portfolio(self, confirm):
         bond = confirm['Bond']

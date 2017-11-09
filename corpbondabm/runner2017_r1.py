@@ -42,10 +42,7 @@ class Runner(object):
             mm_bond = {'Name': bond['Name'], 'Nominal': share*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = mm_bond
-        m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights)
-        bond_value = m1.compute_portfolio_value()
-        m1.cash = target*bond_value/(1-target)
-        m1.add_nav_to_history(0)
+        m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights, 100000)
         #print('Mutual Fund Starting Cash: ', m1.cash)
         return m1
         
@@ -57,9 +54,7 @@ class Runner(object):
             ic_bond = {'Name': bond['Name'], 'Nominal': share*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = ic_bond
-        i1 = InsuranceCo(name, bond_weight, bond_list, portfolio, year)
-        bond_value = i1.compute_portfolio_value()
-        i1.equity = (1-bond_weight)*bond_value/bond_weight
+        i1 = InsuranceCo(name, 1-bond_weight, bond_list, portfolio, year)
         return i1
     
     def make_dealer(self, name, special, long_limit, short_limit):
