@@ -143,14 +143,6 @@ class MutualFund(BuySide):
             for i,bond in enumerate(self.bond_list):
                 if sizes[i] >= 1.0:
                     self.make_rfq(bond, side, sizes[i])
-            
-            
-            
-            
-        #self.cash += expected_cash_flow
-        #print('InMF: ', 'Step: ', step, 'Ending Cash: ', self.cash)
-        #self.shares += expected_cash_flow/self.nav_history[step-1]['NAVPerShare']
-        #print('InMF: ', 'Step: ', step, 'Ending Shares: ', self.shares)
     
     def nav_to_h5(self, filename):
         df = pd.DataFrame([v for v in self.nav_history.values()])
