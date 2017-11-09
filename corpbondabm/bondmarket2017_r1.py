@@ -49,8 +49,6 @@ class BondMarket(object):
     def update_eod_bond_price(self, step):
         ytm_delta_ps = self.yield_curve_p[step]
         for j, bond in enumerate(self.bonds):
-            #old_ytm = self.bond_ytm(100, bond['Maturity'], bond['Coupon'], self.last_prices[bond['Name']], 2, bond['Yield'])
-            #new_ytm = self.bond_ytm(100, bond['Maturity'], bond['Coupon'], self.last_prices[bond['Name']], 2, bond['Yield'])*(1+ytm_delta_ps[j])
             bond['Yield'] = self.bond_ytm(100, bond['Maturity'], bond['Coupon'], self.last_prices[bond['Name']], 2, bond['Yield'])*(1+ytm_delta_ps[j])
             new_price = self._price_bond(100, bond['Maturity'], bond['Coupon'], bond['Yield'], 2)
             bond['Price'] = new_price
