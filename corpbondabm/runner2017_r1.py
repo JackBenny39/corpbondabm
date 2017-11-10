@@ -28,7 +28,7 @@ class Runner(object):
     def __init__(self, market_name='bondmarket1', bonds=BONDS, d_special=D_SPECIAL,
                  mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.07, mm_target=0.05,
                  ic_name='i1', ic_bond=0.6, dealer_long=0.1, dealer_short=0.075, run_steps=252,
-                 year=2003):
+                 year=2003, h5_file='test.h5'):
         self.bondmarket = self.make_market(market_name, year, bonds)
         self.mutualfund = self.make_mutual_fund(mm_name, mm_share, mm_lower, mm_upper, mm_target)
         self.insuranceco = self.make_insurance_co(ic_name, 1-mm_share, ic_bond, year)
@@ -36,6 +36,7 @@ class Runner(object):
         self.run_steps = run_steps
         self.seed_mutual_fund(PRIMER)
         self.run_mcs(PRIMER)
+        self.make_h5s(h5_file)
         
     def make_market(self, name, year, bonds):
         bondmarket = BondMarket(name, year)
@@ -53,7 +54,6 @@ class Runner(object):
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = mm_bond
         m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights, 100000)
-        #print('Mutual Fund Starting Cash: ', m1.cash)
         return m1
         
     def make_insurance_co(self, name, share, bond_weight, year):
@@ -85,7 +85,12 @@ class Runner(object):
         buyside = np.array([self.insuranceco, self.mutualfund])
         np.random.shuffle(buyside)
         return buyside
-
+    
+    def make_h5s(self, h5_file):
+        self.bondmarket.last_prices_to_h5(h5_file)
+        self.bondmarket.trades_to_h5(h5_file)
+        self.mutualfund.nav_to_h5(h5_file)
+    
     def seed_mutual_fund(self, prime1):
         for current_date in range(prime1):
             self.mutualfund.update_prices(self.bondmarket.last_prices)
@@ -123,7 +128,7 @@ if __name__ == '__main__':
     print(start)
     #market_name = 'bondmarket1'
     #mutualfund_name = 'm1' 
-    mm_share = 0.15
+    mm_share = 0.35
     #mm_lower = 0.03
     #mm_upper = 0.08
     #mm_target = 0.05
@@ -149,15 +154,11 @@ if __name__ == '__main__':
                 #}
     
     # Write output to h5 file
-    h5filename='test.h5'
+    h5filename = 'test.h5'
     h5dir = 'C:\\Users\\user\\Documents\\Agent-Based Models\\Corporate Bonds\\h5 files\\'
     h5_file = '%s%s' % (h5dir, h5filename)
     
-    market1 = Runner(mm_share=mm_share, run_steps=run_steps, year=year)
-    market1.bondmarket.last_prices_to_h5(h5_file)
-    market1.bondmarket.trades_to_h5(h5_file)
-    market1.mutualfund.nav_to_h5(h5_file)
-    
+    market1 = Runner(mm_share=mm_share, run_steps=run_steps, year=year, h5_file=h5_file)
     
     print('Run Time: %.2f seconds' % ((time.time() - start)))
 
