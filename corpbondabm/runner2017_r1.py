@@ -9,28 +9,38 @@ TREYNOR_BOUNDS = [0.01, 0.0125]
 TREYNOR_FACTOR = 10000
 PRIMER = 8
 
+BONDS = [
+         {'Name': 'MM101', 'Nominal': 500000, 'Maturity': 1, 'Coupon': 0.0175, 'Yield': 0.015, 'NPer': 2},
+         {'Name': 'MM102', 'Nominal': 500000, 'Maturity': 2, 'Coupon': 0.025, 'Yield': 0.0175, 'NPer': 2},
+         {'Name': 'MM103', 'Nominal': 1000000, 'Maturity': 5, 'Coupon': 0.0225, 'Yield': 0.025, 'NPer': 2},
+         {'Name': 'MM104', 'Nominal': 2000000, 'Maturity': 10, 'Coupon': 0.024, 'Yield': 0.026, 'NPer': 2},
+         {'Name': 'MM105', 'Nominal': 1000000, 'Maturity': 25, 'Coupon': 0.04, 'Yield': 0.0421, 'NPer': 2}
+        ]
+    
+D_SPECIAL = {
+             'd1': {'MM101': 0.9, 'MM102': 0.9, 'MM103': 0.75, 'MM104': 0.5, 'MM105': 0.5},
+             'd2': {'MM101': 0.5, 'MM102': 0.75, 'MM103': 0.9, 'MM104': 0.75, 'MM105': 0.5},
+             'd3': {'MM101': 0.5, 'MM102': 0.5, 'MM103': 0.75, 'MM104': 0.9, 'MM105': 0.9}
+            }
+
 class Runner(object):
     
-    def __init__(self, market_name='bondmarket1', 
+    def __init__(self, market_name='bondmarket1', bonds=BONDS, d_special=D_SPECIAL,
                  mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.07, mm_target=0.05,
                  ic_name='i1', ic_bond=0.6, dealer_long=0.1, dealer_short=0.075, run_steps=252,
                  year=2003):
-        self.bondmarket = self.make_market(market_name, year)
+        self.bondmarket = self.make_market(market_name, year, bonds)
         self.mutualfund = self.make_mutual_fund(mm_name, mm_share, mm_lower, mm_upper, mm_target)
         self.insuranceco = self.make_insurance_co(ic_name, 1-mm_share, ic_bond, year)
-        self.dealers, self.dealers_dict = self.make_dealers(dealer_long, dealer_short)
+        self.dealers, self.dealers_dict = self.make_dealers(dealer_long, dealer_short, d_special)
         self.run_steps = run_steps
         self.seed_mutual_fund(PRIMER)
         self.run_mcs(PRIMER)
         
-    def make_market(self, name, year):
-        # allow user to specify as args?
+    def make_market(self, name, year, bonds):
         bondmarket = BondMarket(name, year)
-        bondmarket.add_bond('MM101', 500000, 1, .0175, .015, 2)
-        bondmarket.add_bond('MM102', 500000, 2, .025, .0175, 2)
-        bondmarket.add_bond('MM103', 1000000, 5, .0225, .025, 2)
-        bondmarket.add_bond('MM104', 2000000, 10, .024, .026, 2)
-        bondmarket.add_bond('MM105', 1000000, 25, .04, .0421, 2)
+        for bond in bonds:
+            bondmarket.add_bond(bond['Name'], bond['Nominal'], bond['Maturity'], bond['Coupon'], bond['Yield'], bond['NPer'])
         return bondmarket
     
     def make_mutual_fund(self, name, share, ll, ul, target):
@@ -66,11 +76,7 @@ class Runner(object):
             portfolio[bond['Name']] = d_bond
         return Dealer(name, bond_list, portfolio, long_limit, short_limit, TREYNOR_BOUNDS, TREYNOR_FACTOR)
     
-    def make_dealers(self, ul, ll):
-        # maybe pass these in as args - along with bond setup
-        d_special = {'d1': {'MM101': 0.9, 'MM102': 0.9, 'MM103': 0.75, 'MM104': 0.5, 'MM105': 0.5},
-                     'd2': {'MM101': 0.5, 'MM102': 0.75, 'MM103': 0.9, 'MM104': 0.75, 'MM105': 0.5},
-                     'd3': {'MM101': 0.5, 'MM102': 0.5, 'MM103': 0.75, 'MM104': 0.9, 'MM105': 0.9}}
+    def make_dealers(self, ul, ll, d_special):
         dealers = [self.make_dealer(name, special, ul, ll) for name, special in d_special.items()]
         dealers_dict = dict(zip(['d%i' % i for i in range(1, 4)], dealers))
         return dealers, dealers_dict
@@ -127,6 +133,20 @@ if __name__ == '__main__':
     #dealer_short=0.075
     run_steps=240
     year=2016
+        
+    #bonds = [
+            #{'Name': 'MM101', 'Nominal': 500000, 'Maturity': 1, 'Coupon': 0.0175, 'Yield': 0.015, 'NPer': 2},
+            #{'Name': 'MM102', 'Nominal': 500000, 'Maturity': 2, 'Coupon': 0.025, 'Yield': 0.0175, 'NPer': 2},
+            #{'Name': 'MM103', 'Nominal': 1000000, 'Maturity': 5, 'Coupon': 0.0225, 'Yield': 0.025, 'NPer': 2},
+            #{'Name': 'MM104', 'Nominal': 2000000, 'Maturity': 10, 'Coupon': 0.024, 'Yield': 0.026, 'NPer': 2},
+            #{'Name': 'MM105', 'Nominal': 1000000, 'Maturity': 25, 'Coupon': 0.04, 'Yield': 0.0421, 'NPer': 2}
+            #]
+    
+    #d_special = {
+                #'d1': {'MM101': 0.9, 'MM102': 0.9, 'MM103': 0.75, 'MM104': 0.5, 'MM105': 0.5},
+                #'d2': {'MM101': 0.5, 'MM102': 0.75, 'MM103': 0.9, 'MM104': 0.75, 'MM105': 0.5},
+                #'d3': {'MM101': 0.5, 'MM102': 0.5, 'MM103': 0.75, 'MM104': 0.9, 'MM105': 0.9}
+                #}
     
     # Write output to h5 file
     h5filename='test.h5'

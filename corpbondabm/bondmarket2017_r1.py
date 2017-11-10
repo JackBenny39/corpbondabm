@@ -68,11 +68,11 @@ class BondMarket(object):
             bond['Price'] = new_price
             self.last_prices[bond['Name']] = new_price
     
-    def compute_weights_from_price(self):
-        prices = np.array([x['Price']*x['Nominal']/100 for x in self.bonds])
-        market_value = np.sum(prices)
-        weights = prices/market_value
-        return weights
+    #def compute_weights_from_price(self):
+        #prices = np.array([x['Price']*x['Nominal']/100 for x in self.bonds])
+        #market_value = np.sum(prices)
+        #weights = prices/market_value
+        #return weights
     
     def compute_weights_from_nominal(self):
         nominals = np.array([x['Nominal'] for x in self.bonds])

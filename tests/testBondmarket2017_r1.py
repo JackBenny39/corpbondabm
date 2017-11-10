@@ -42,6 +42,7 @@ class TestBondmarket(unittest.TestCase):
         self.assertDictEqual(self.bondmarket.bonds[4], expected)
         self.assertEqual(self.bondmarket.last_prices['MM105'], price5)
         
+    @unittest.skip('Not in use')
     def test_compute_weights_from_price(self):
         weights = list(np.round(self.bondmarket.compute_weights_from_price(),2))
         expected = [0.1, 0.1, 0.2, 0.4, 0.2]
