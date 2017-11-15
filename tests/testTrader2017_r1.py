@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from corpbondabm.trader2017_r1 import BuySide, MutualFund, InsuranceCo, HedgeFund, Dealer
+from corpbondabm.trader2017_r1 import BuySide, MutualFund, MutualFund2, InsuranceCo, HedgeFund, Dealer
 from corpbondabm.bondmarket2017_r1 import BondMarket
 
 MM_FRACTION = 0.15
@@ -40,6 +40,7 @@ class TestTrader(unittest.TestCase):
             
         self.b1 = BuySide('b1', bond_list, mm_portfolio)
         self.m1 = MutualFund('m1', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights, 100)
+        self.m2 = MutualFund2('m2', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights, 100)
         self.i1 = InsuranceCo('i1', IC_EQUITY, bond_list, ic_portfolio, 2003)
 
         self.h1 = HedgeFund('h1', bond_list, mm_portfolio) # use MF portfolio for now
@@ -155,6 +156,11 @@ class TestTrader(unittest.TestCase):
         for i in range(len(self.m1.rfq_collector)):
             with self.subTest(i=i):
                 self.assertDictEqual(self.m1.rfq_collector[i], expected[i])
+                
+    
+    # The Mutual Fund 2
+    def test_repr_MutualFund2(self):
+        self.assertEqual('BuySide(m2, MutualFund)', '{0}'.format(self.m2))
                 
         
     # The Insurance Company    

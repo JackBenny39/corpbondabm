@@ -90,11 +90,13 @@ class MutualFund(BuySide):
         cash = self.cash
         nav = bond_value + cash
         nav_per_share = nav/self.shares
-        self.nav_history[step] = {'Step': step, 'BondValue': bond_value, 'Cash': cash, 'NAV': nav, 'NAVPerShare': nav_per_share}
         # Then compute the cash inflow during the day, add to cash and buy/sell shares at the previously computed nav per share
         expected_cash_flow = self.compute_flow(step) if step >= 8 else 0
         self.cash += expected_cash_flow
         self.shares += expected_cash_flow/nav_per_share
+        nav = bond_value + self.cash
+        nav_per_share = nav/self.shares
+        self.nav_history[step] = {'Step': step, 'BondValue': bond_value, 'Cash': cash, 'NAV': nav, 'NAVPerShare': nav_per_share}
         
     def compute_flow(self, step):
         nav_lag1 = self.nav_history[step-1]['NAVPerShare']
@@ -147,6 +149,64 @@ class MutualFund(BuySide):
     def nav_to_h5(self, filename):
         df = pd.DataFrame([v for v in self.nav_history.values()])
         df.to_hdf(filename, 'nav', append=True, format='table', complevel=5, complib='blosc')
+        
+        
+class MutualFund2(MutualFund):
+    '''
+    MutualFund
+        
+        
+    '''
+    def __init__(self, name, lower_bound, upper_bound, target, bond_list, portfolio, weights, shares):
+        '''
+        Initialize MutualFund
+        
+        
+        '''
+        MutualFund.__init__(self, name, lower_bound, upper_bound, target, bond_list, portfolio, weights, shares)
+    
+    def add_nav_to_history(self, step):
+        # First compute the bond value, previous cash + cash from transactions and nav per share with existing shares
+        bond_value = self.compute_portfolio_value()
+        cash = self.cash
+        nav = bond_value + cash
+        nav_per_share = nav/self.shares
+        # Then compute the cash inflow during the day, add to cash and buy/sell shares at the previously computed nav per share
+        expected_cash_flow = self.compute_flow(step) if step >= 8 else 0
+        self.cash += expected_cash_flow
+        self.shares += expected_cash_flow/nav_per_share
+        nav = bond_value + self.cash
+        nav_per_share = nav/self.shares
+        self.nav_history[step] = {'Step': step, 'BondValue': bond_value, 'Cash': cash, 'NAV': nav, 'NAVPerShare': nav_per_share}
+            
+    def make_portfolio_decision(self, step):
+        '''
+        The MutualFund needs to know:
+        1. Cash Position relative to limits
+        2. Nominal Index Weights (fixed)
+        
+        And then:
+        1. Submits orders if cash is not within the limits
+        2. Bond choice weighting to match Index
+        
+        But:
+        1. Buying can wait, while
+        2. Selling cannot
+        '''
+        self.rfq_collector.clear()
+        current_nav = self.nav_history[step-1]['NAV']
+        if self.cash < self.lower_bound*current_nav or self.cash > self.upper_bound*current_nav:
+            target_cash = self.target * current_nav
+            cash_to_raise = target_cash - self.cash
+            xprices = np.array([self.portfolio[x]['Price']/100 for x in self.bond_list])
+            sizes = np.abs(np.round(self.index_weight_array*cash_to_raise/xprices,0))
+            if self.cash < self.lower_bound*current_nav:
+                side = 'sell'
+            elif self.cash > self.upper_bound*current_nav:
+                side = 'buy'
+            for i,bond in enumerate(self.bond_list):
+                if sizes[i] >= 1.0:
+                    self.make_rfq(bond, side, sizes[i])
  
         
 class InsuranceCo(BuySide):
