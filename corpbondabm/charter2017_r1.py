@@ -7,7 +7,7 @@ from matplotlib import rc
 rc('font', **{'family': 'serif', 'serif': ['Cambria', 'Times New Roman']})
 
 from corpbondabm.bondmarket2017_r1 import BondMarket
-from corpbondabm.trader2017_r1 import MutualFund, InsuranceCo, Dealer
+from corpbondabm.trader2017_r1 import MutualFund2, InsuranceCo, Dealer
 
 TREYNOR_BOUNDS = [0.01, 0.0125]
 TREYNOR_FACTOR = 10000
@@ -59,7 +59,7 @@ class Charter(object):
             mm_bond = {'Name': bond['Name'], 'Nominal': share*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = mm_bond
-        m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights, 100000)
+        m1 = MutualFund2(name, ll, ul, target, bond_list, portfolio, nominal_weights, 100000)
         return m1
         
     def make_insurance_co(self, name, share, bond_weight, year):
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     
     #market_name = 'bondmarket1'
     #mutualfund_name = 'm1' 
-    mm_share = 0.25
+    mm_share = 0.35
     #mm_lower = 0.03
     #mm_upper = 0.08
     #mm_target = 0.05

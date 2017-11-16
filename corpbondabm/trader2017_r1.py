@@ -96,7 +96,7 @@ class MutualFund(BuySide):
         self.shares += expected_cash_flow/nav_per_share
         nav = bond_value + self.cash
         nav_per_share = nav/self.shares
-        self.nav_history[step] = {'Step': step, 'BondValue': bond_value, 'Cash': cash, 'NAV': nav, 'NAVPerShare': nav_per_share}
+        self.nav_history[step] = {'Step': step, 'BondValue': bond_value, 'Cash': cash, 'NAV': nav, 'NAVPerShare': nav_per_share, 'CashFlow': expected_cash_flow}
         
     def compute_flow(self, step):
         nav_lag1 = self.nav_history[step-1]['NAVPerShare']
@@ -164,20 +164,6 @@ class MutualFund2(MutualFund):
         
         '''
         MutualFund.__init__(self, name, lower_bound, upper_bound, target, bond_list, portfolio, weights, shares)
-    
-    def add_nav_to_history(self, step):
-        # First compute the bond value, previous cash + cash from transactions and nav per share with existing shares
-        bond_value = self.compute_portfolio_value()
-        cash = self.cash
-        nav = bond_value + cash
-        nav_per_share = nav/self.shares
-        # Then compute the cash inflow during the day, add to cash and buy/sell shares at the previously computed nav per share
-        expected_cash_flow = self.compute_flow(step) if step >= 8 else 0
-        self.cash += expected_cash_flow
-        self.shares += expected_cash_flow/nav_per_share
-        nav = bond_value + self.cash
-        nav_per_share = nav/self.shares
-        self.nav_history[step] = {'Step': step, 'BondValue': bond_value, 'Cash': cash, 'NAV': nav, 'NAVPerShare': nav_per_share}
             
     def make_portfolio_decision(self, step):
         '''

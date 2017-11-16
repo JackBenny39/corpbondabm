@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 from corpbondabm.bondmarket2017_r1 import BondMarket
-from corpbondabm.trader2017_r1 import MutualFund, InsuranceCo, Dealer
+from corpbondabm.trader2017_r1 import MutualFund2, InsuranceCo, Dealer
 
 TREYNOR_BOUNDS = [0.01, 0.0125]
 TREYNOR_FACTOR = 10000
@@ -53,7 +53,7 @@ class Runner(object):
             mm_bond = {'Name': bond['Name'], 'Nominal': share*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = mm_bond
-        m1 = MutualFund(name, ll, ul, target, bond_list, portfolio, nominal_weights, 100000)
+        m1 = MutualFund2(name, ll, ul, target, bond_list, portfolio, nominal_weights, 100000)
         return m1
         
     def make_insurance_co(self, name, share, bond_weight, year):
@@ -84,7 +84,8 @@ class Runner(object):
     def make_buyside(self):
         buyside = np.array([self.insuranceco, self.mutualfund])
         np.random.shuffle(buyside)
-        return buyside
+        #return buyside
+        return [self.mutualfund]
     
     def make_h5s(self, h5_file):
         self.bondmarket.last_prices_to_h5(h5_file)

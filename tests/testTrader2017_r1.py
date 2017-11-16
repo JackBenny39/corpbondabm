@@ -83,7 +83,8 @@ class TestTrader(unittest.TestCase):
         prices = {'MM101': 100, 'MM102': 100, 'MM103': 100, 'MM104': 100, 'MM105': 100}
         self.m1.update_prices(prices)
         self.m1.add_nav_to_history(1)
-        self.assertDictEqual(self.m1.nav_history[1], {'Step': 1, 'BondValue': 750.0, 'Cash': 38.9178220025832, 'NAV': 788.91782200258319, 'NAVPerShare': 7.8891782200258316})
+        self.assertDictEqual(self.m1.nav_history[1], {'Step': 1, 'BondValue': 750.0, 'Cash': 38.9178220025832, 'NAV': 788.91782200258319,
+                                                      'NAVPerShare': 7.8891782200258316, 'CashFlow': 0})
           
     def test_compute_flow(self):
         self.m1.nav_history[1] = {'Step': 1, 'BondValue': 100, 'Cash': 0, 'NAV': 100, 'NAVPerShare': 10}
@@ -161,6 +162,44 @@ class TestTrader(unittest.TestCase):
     # The Mutual Fund 2
     def test_repr_MutualFund2(self):
         self.assertEqual('BuySide(m2, MutualFund)', '{0}'.format(self.m2))
+        
+    def test_make_portfolio_decisionMF2(self):
+        prices = {'MM101': 101, 'MM102': 98, 'MM103': 95, 'MM104': 105, 'MM105': 100}
+        self.m2.update_prices(prices)
+        # Do nothing: cash between limits
+        self.m2.nav_history[6] = {'Step': 6, 'BondValue': 720, 'Cash': 30, 'NAV': 750, 'NAVPerShare': 75}
+        self.m2.cash = 30
+        self.m2.shares = 10
+        self.m2.make_portfolio_decision(7)
+        self.assertFalse(self.m2.rfq_collector)
+        # Sell some: low on cash}
+        self.m2.cash = 20
+        self.m2.shares = 10
+        self.m2.make_portfolio_decision(7)
+        expected = [
+                    {'order_id': 'm2_1', 'name': 'MM101', 'side': 'sell', 'amount': 2.0},
+                    {'order_id': 'm2_2', 'name': 'MM102', 'side': 'sell', 'amount': 2.0},
+                    {'order_id': 'm2_3', 'name': 'MM103', 'side': 'sell', 'amount': 4.0},
+                    {'order_id': 'm2_4', 'name': 'MM104', 'side': 'sell', 'amount': 7.0},
+                    {'order_id': 'm2_5', 'name': 'MM105', 'side': 'sell', 'amount': 4.0}
+                    ]
+        for i in range(len(self.m2.rfq_collector)):
+            with self.subTest(i=i):
+                self.assertDictEqual(self.m2.rfq_collector[i], expected[i])
+        # Buy some: extra cash
+        self.m2.cash = 70
+        self.m2.shares = 10
+        self.m2.make_portfolio_decision(7)
+        expected = [
+                    {'order_id': 'm2_6', 'name': 'MM101', 'side': 'buy', 'amount': 3.0},
+                    {'order_id': 'm2_7', 'name': 'MM102', 'side': 'buy', 'amount': 3.0},
+                    {'order_id': 'm2_8', 'name': 'MM103', 'side': 'buy', 'amount': 7.0},
+                    {'order_id': 'm2_9', 'name': 'MM104', 'side': 'buy', 'amount': 12.0},
+                    {'order_id': 'm2_10', 'name': 'MM105', 'side': 'buy', 'amount': 6.0}
+                    ]
+        for i in range(len(self.m1.rfq_collector)):
+            with self.subTest(i=i):
+                self.assertDictEqual(self.m1.rfq_collector[i], expected[i])
                 
         
     # The Insurance Company    
