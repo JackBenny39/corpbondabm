@@ -302,6 +302,7 @@ class Dealer(object):
         self.upper_bound = bounds[1]
         self.spread_factor = spread_factor
         self.update_limits(long_limit, short_limit)
+        self.quote_details = []
         
     def __repr__(self):
         return 'Dealer({0}, {1})'.format(self._trader_id, self.trader_type)
@@ -360,11 +361,18 @@ class Dealer(object):
                 ask_price = bond_price + half_spread
                 price = bid_price if side == 'sell' else ask_price
                 quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
+            extra_details = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price,
+                             'ExpectedInventory': expected_inventory, 'LowerLimit': lower_limit, 'UpperLimit': upper_limit, 'LastPrice': bond_price,
+                             'OutsideSpread': outside_spread, 'InventoryRange': inventory_range, 'InsideSpread': inside_spread,
+                             'Scale': scale, 'Ask': ask_price, 'Bid': bid_price, 'QuotePrice': price}
+            self.quote_details.append(extra_details)
         else:
             quote = None #{'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': None, 'side': side, 'price': None}
         return quote
             
-    
+    def extra_to_h5(self, filename):
+        df = pd.DataFrame(self.quote_details)
+        df.to_hdf(filename, '%s_details' % self._trader_id, append=True, format='table', complevel=5, complib='blosc')    
     
     
     

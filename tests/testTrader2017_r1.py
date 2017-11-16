@@ -325,10 +325,15 @@ class TestTrader(unittest.TestCase):
         expected = {'Dealer': 'd1', 'order_id': 'm1_1', 'name': 'MM101', 'amount': 5, 'side': 'buy', 'price': 100.37610464057674}
         self.assertDictEqual(quote, expected)
         # And finally, prices should fall with rising inventory
+        self.d1.portfolio['MM101']['Quantity'] = -37.5
+        rfq =  {'order_id': 'm1_0', 'name': 'MM101', 'side': 'sell', 'amount': 7.5}
+        quote0 = self.d1.make_quote(rfq)
+        price0 = quote0['price']
         self.d1.portfolio['MM101']['Quantity'] = -30
         rfq =  {'order_id': 'm1_1', 'name': 'MM101', 'side': 'sell', 'amount': 10}
         quote1 = self.d1.make_quote(rfq)
         price1 = quote1['price']
+        self.assertLess(price1, price0)
         self.d1.portfolio['MM101']['Quantity'] = -20
         rfq =  {'order_id': 'm1_2', 'name': 'MM101', 'side': 'sell', 'amount': 10}
         quote2 = self.d1.make_quote(rfq)
@@ -345,10 +350,25 @@ class TestTrader(unittest.TestCase):
         price4 = quote4['price']
         self.assertLess(price4, price3)
         self.d1.portfolio['MM101']['Quantity'] = 10
-        rfq =  {'order_id': 'm1_4', 'name': 'MM101', 'side': 'sell', 'amount': 20}
+        rfq =  {'order_id': 'm1_4', 'name': 'MM101', 'side': 'sell', 'amount': 10}
         quote5 = self.d1.make_quote(rfq)
         price5 = quote5['price']
         self.assertLess(price5, price4)
+        self.d1.portfolio['MM101']['Quantity'] = 20
+        rfq =  {'order_id': 'm1_4', 'name': 'MM101', 'side': 'sell', 'amount': 10}
+        quote6 = self.d1.make_quote(rfq)
+        price6 = quote6['price']
+        self.assertLess(price6, price5)
+        self.d1.portfolio['MM101']['Quantity'] = 30
+        rfq =  {'order_id': 'm1_4', 'name': 'MM101', 'side': 'sell', 'amount': 10}
+        quote6 = self.d1.make_quote(rfq)
+        price6 = quote6['price']
+        self.assertLess(price6, price5)
+        self.d1.portfolio['MM101']['Quantity'] = 40
+        rfq =  {'order_id': 'm1_4', 'name': 'MM101', 'side': 'sell', 'amount': 10}
+        quote7 = self.d1.make_quote(rfq)
+        price7 = quote7['price']
+        self.assertLess(price7, price6)
 
         
         

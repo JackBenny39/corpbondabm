@@ -109,7 +109,7 @@ class Charter(object):
     def makefig(self):
         fig = plt.figure(figsize=(13,9))
         ax = fig.add_subplot(111)
-        ax.axis([PRIMER, self.run_steps, 80, 104])
+        ax.axis([PRIMER, self.run_steps, 40, 104])
         ax.set_xlabel('Date')
         ax.set_ylabel('Price')
         colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'Chartreuse', 'DarkRed']
@@ -166,8 +166,8 @@ if __name__ == '__main__':
     #mm_target = 0.05
     #ic_name='i1'
     #ic_bond=0.6
-    #dealer_long=0.1
-    #dealer_short=0.075
+    dealer_long=0.1
+    dealer_short=0.075
     run_steps=240
     year=2016
     

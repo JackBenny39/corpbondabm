@@ -91,6 +91,8 @@ class Runner(object):
         self.bondmarket.last_prices_to_h5(h5_file)
         self.bondmarket.trades_to_h5(h5_file)
         self.mutualfund.nav_to_h5(h5_file)
+        for dealer in self.dealers:
+            dealer.extra_to_h5(h5_file)
     
     def seed_mutual_fund(self, prime1):
         for current_date in range(prime1):
