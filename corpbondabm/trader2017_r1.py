@@ -347,10 +347,11 @@ class Dealer(object):
                 scale = (expected_inventory/lower_limit)*specialization
                 ask_price = (1 + scale*self.upper_bound)*bond_price
                 bid_price = ask_price - inside_spread
-                price = bid_price if side == 'sell' else ask_price
+                price = bid_price if side == 'sell' else ask_price 
                 quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
             elif expected_inventory > 0:
-                scale = (expected_inventory/upper_limit)*specialization
+                scale = min((2*expected_inventory/upper_limit),1)#*specialization
+                print(scale)
                 bid_price = (1 - scale*self.lower_bound)*bond_price
                 ask_price = bid_price + inside_spread
                 price = bid_price if side == 'sell' else ask_price

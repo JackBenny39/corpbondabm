@@ -149,7 +149,9 @@ class Charter(object):
         self.insuranceco.update_prices(prices)
         self.bondmarket.print_last_prices(j)
         self.make_chart_data()
+        print(j)
         return tuple(self.lines)
+    
 
 
                     
