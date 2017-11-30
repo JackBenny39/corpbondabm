@@ -298,8 +298,7 @@ class Dealer(object):
         self.trader_type = 'Dealer'
         self.bond_list = bond_list
         self.portfolio = portfolio
-        self.lower_bound = bounds[0]
-        self.upper_bound = bounds[1]
+        self.lower_bound, self.upper_bound = bounds
         self.spread_factor = spread_factor
         self.update_limits(long_limit, short_limit)
         self.quote_details = []

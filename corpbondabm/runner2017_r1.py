@@ -5,7 +5,7 @@ import numpy as np
 from corpbondabm.bondmarket2017_r1 import BondMarket
 from corpbondabm.trader2017_r1 import MutualFund2, InsuranceCo, Dealer
 
-TREYNOR_BOUNDS = [0.01, 0.0125]
+TREYNOR_BOUNDS = (0.01, 0.0125)
 TREYNOR_FACTOR = 10000
 PRIMER = 8
 

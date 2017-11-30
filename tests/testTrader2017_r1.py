@@ -7,7 +7,7 @@ from corpbondabm.bondmarket2017_r1 import BondMarket
 
 MM_FRACTION = 0.15
 IC_EQUITY = 0.4
-TREYNOR_BOUNDS = [0.01, 0.0125]
+TREYNOR_BOUNDS = (0.01, 0.0125)
 TREYNOR_FACTOR = 10
 
 
