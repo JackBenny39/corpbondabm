@@ -5,7 +5,7 @@ import numpy as np
 from corpbondabm.bondmarket2017_r1 import BondMarket
 from corpbondabm.trader2017_r1 import MutualFund2, InsuranceCo, Dealer
 
-TREYNOR_BOUNDS = [0.01, 0.0125]
+TREYNOR_BOUNDS = (0.01, 0.0125)
 TREYNOR_FACTOR = 10000
 PRIMER = 8
 
@@ -91,6 +91,8 @@ class Runner(object):
         self.bondmarket.last_prices_to_h5(h5_file)
         self.bondmarket.trades_to_h5(h5_file)
         self.mutualfund.nav_to_h5(h5_file)
+        for dealer in self.dealers:
+            dealer.extra_to_h5(h5_file)
     
     def seed_mutual_fund(self, prime1):
         for current_date in range(prime1):

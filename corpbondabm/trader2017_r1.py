@@ -281,11 +281,7 @@ class Dealer(object):
     '''
     Dealer
     
-    Dealer receives rfqs and quotes prices similar to Treynor (FAJ, 1987):
-    1. The active side of the quote is a function of expected inventory and 
-       the outside spread
-    2. The passive side of the quote is a fixed spread related to average trade size
-       outside spread and inventory range
+    Dealer receives rfqs and quotes prices as described in Treynor (FAJ, 1987) page 30.
     '''
     
     def __init__(self, name, bond_list, portfolio, long_limit, short_limit, bounds, spread_factor):
@@ -298,10 +294,10 @@ class Dealer(object):
         self.trader_type = 'Dealer'
         self.bond_list = bond_list
         self.portfolio = portfolio
-        self.lower_bound = bounds[0]
-        self.upper_bound = bounds[1]
+        self.lower_bound, self.upper_bound = bounds
         self.spread_factor = spread_factor
         self.update_limits(long_limit, short_limit)
+        self.quote_details = []
         
     def __repr__(self):
         return 'Dealer({0}, {1})'.format(self._trader_id, self.trader_type)
@@ -326,6 +322,18 @@ class Dealer(object):
         self.portfolio[bond]['Price'] = confirm['Price']
             
     def make_quote(self, rfq):
+        '''
+        The quote is the last price (from the previous night) adjusted by some fraction 
+        of the relevant Outside Price determined by Value-Based Investors. The adjustment 
+        is a function of the projected inventory position relative to the inventory limit and
+        the standard accommodation. 
+        
+        For now, both the standard accommodation and the Outside Prices are exogenous. 
+        In future, the Outside Prices will be determined endogenously by the Hedge Fund agent 
+        and the standard accommodation will either be empirically determined (i.e., calibrated) 
+        or set endogenously by the agent trading choices.
+        
+        '''
         order_id = rfq['order_id']
         bond = rfq['name']
         side = rfq['side']
@@ -333,7 +341,9 @@ class Dealer(object):
         lower_limit = self.portfolio[bond]['LowerLimit']
         upper_limit = self.portfolio[bond]['UpperLimit']
         bond_price = self.portfolio[bond]['Price']
-        outside_spread = (self.upper_bound + self.lower_bound)*bond_price
+        outside_bid = (1 - self.lower_bound)*bond_price
+        outside_ask = (1 + self.upper_bound)*bond_price
+        outside_spread = outside_ask - outside_bid
         inventory_range = upper_limit - lower_limit
         # Treynor Standard Accommodation = 10000 (i.e., $10 Million - Nominal)
         inside_spread = self.spread_factor*outside_spread/inventory_range
@@ -341,30 +351,28 @@ class Dealer(object):
         size = amount if side == 'sell' else -amount
         expected_inventory = self.portfolio[bond]['Quantity'] + size
         if lower_limit <= expected_inventory <= upper_limit:
-            specialization = 1 - self.portfolio[bond]['Specialization']/10
-            if expected_inventory < 0:
-                scale = (expected_inventory/lower_limit)*specialization
-                ask_price = (1 + scale*self.upper_bound)*bond_price
-                bid_price = ask_price - inside_spread
-                price = bid_price if side == 'sell' else ask_price
-                quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
-            elif expected_inventory > 0:
-                scale = (expected_inventory/upper_limit)*specialization
-                bid_price = (1 - scale*self.lower_bound)*bond_price
-                ask_price = bid_price + inside_spread
-                price = bid_price if side == 'sell' else ask_price
-                quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
-            elif expected_inventory == 0:
-                half_spread = inside_spread/2
-                bid_price = bond_price - half_spread
-                ask_price = bond_price + half_spread
-                price = bid_price if side == 'sell' else ask_price
-                quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
+            quote_midpoint = 0.5*(outside_ask + outside_bid)
+            if expected_inventory < 0: # quote_midpoint adjusted up to encourage selling
+                quote_midpoint += 0.5*outside_spread*(expected_inventory/(lower_limit - self.spread_factor))
+            elif expected_inventory > 0: # quote_midpoint adjusted down to encourage buying
+                quote_midpoint -= 0.5*outside_spread*(expected_inventory/(upper_limit + self.spread_factor))
+            ask_price = quote_midpoint + 0.5*inside_spread
+            bid_price = quote_midpoint - 0.5*inside_spread
+            price = bid_price if side == 'sell' else ask_price
+            quote = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price}
+            
+            extra_details = {'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': amount, 'side': side, 'price': price,
+                             'ExpectedInventory': expected_inventory, 'LowerLimit': lower_limit, 'UpperLimit': upper_limit, 'LastPrice': bond_price,
+                             'OutsideSpread': outside_spread, 'InventoryRange': inventory_range, 'InsideSpread': inside_spread,
+                             'Ask': ask_price, 'Bid': bid_price, 'QuotePrice': price}
+            self.quote_details.append(extra_details)
         else:
             quote = None #{'Dealer': self._trader_id, 'order_id': order_id, 'name': bond, 'amount': None, 'side': side, 'price': None}
         return quote
             
-    
+    def extra_to_h5(self, filename):
+        df = pd.DataFrame(self.quote_details)
+        df.to_hdf(filename, '%s_details' % self._trader_id, append=True, format='table', complevel=5, complib='blosc')    
     
     
     

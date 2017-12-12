@@ -9,7 +9,7 @@ rc('font', **{'family': 'serif', 'serif': ['Cambria', 'Times New Roman']})
 from corpbondabm.bondmarket2017_r1 import BondMarket
 from corpbondabm.trader2017_r1 import MutualFund2, InsuranceCo, Dealer
 
-TREYNOR_BOUNDS = [0.01, 0.0125]
+TREYNOR_BOUNDS = (0.01, 0.0125)
 TREYNOR_FACTOR = 10000
 PRIMER = 8
 
@@ -109,7 +109,7 @@ class Charter(object):
     def makefig(self):
         fig = plt.figure(figsize=(13,9))
         ax = fig.add_subplot(111)
-        ax.axis([PRIMER, self.run_steps, 80, 104])
+        ax.axis([PRIMER, self.run_steps, 40, 104])
         ax.set_xlabel('Date')
         ax.set_ylabel('Price')
         colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'Chartreuse', 'DarkRed']
@@ -150,6 +150,7 @@ class Charter(object):
         self.bondmarket.print_last_prices(j)
         self.make_chart_data()
         return tuple(self.lines)
+    
 
 
                     
@@ -160,7 +161,7 @@ if __name__ == '__main__':
     
     #market_name = 'bondmarket1'
     #mutualfund_name = 'm1' 
-    mm_share = 0.35
+    mm_share = 0.55
     #mm_lower = 0.03
     #mm_upper = 0.08
     #mm_target = 0.05
