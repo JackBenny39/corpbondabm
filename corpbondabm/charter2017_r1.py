@@ -149,7 +149,6 @@ class Charter(object):
         self.insuranceco.update_prices(prices)
         self.bondmarket.print_last_prices(j)
         self.make_chart_data()
-        print(j)
         return tuple(self.lines)
     
 
@@ -162,14 +161,14 @@ if __name__ == '__main__':
     
     #market_name = 'bondmarket1'
     #mutualfund_name = 'm1' 
-    mm_share = 0.35
+    mm_share = 0.55
     #mm_lower = 0.03
     #mm_upper = 0.08
     #mm_target = 0.05
     #ic_name='i1'
     #ic_bond=0.6
-    dealer_long=0.1
-    dealer_short=0.075
+    #dealer_long=0.1
+    #dealer_short=0.075
     run_steps=240
     year=2016
     
