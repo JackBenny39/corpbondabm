@@ -114,8 +114,8 @@ class Runner(object):
                             buyside.modify_portfolio(buyside_confirm)
             # All agents get price updates from the bondmarket at the end of the day
             self.bondmarket.update_eod_bond_price(current_date)
-            if current_date == 50:
-                self.bondmarket.shock_ytm(0.01)
+            #if current_date == 50:
+                #self.bondmarket.shock_ytm(0.01)
             prices = self.bondmarket.last_prices
             for d in self.dealers:
                 d.update_prices(prices)
@@ -123,6 +123,11 @@ class Runner(object):
             self.mutualfund.add_nav_to_history(current_date)
             self.insuranceco.update_prices(prices)
             self.bondmarket.print_last_prices(current_date)
+            if current_date == 50:
+                self.bondmarket.shock_ytm(0.01)
+                prices = self.bondmarket.last_prices
+                for d in self.dealers:
+                    d.update_prices(prices)
 
                     
 if __name__ == '__main__':
@@ -131,7 +136,7 @@ if __name__ == '__main__':
     print(start)
     #market_name = 'bondmarket1'
     #mutualfund_name = 'm1' 
-    mm_share = 0.35
+    mm_share = 0.15
     #mm_lower = 0.03
     #mm_upper = 0.08
     #mm_target = 0.05
@@ -139,7 +144,7 @@ if __name__ == '__main__':
     #ic_bond=0.6
     #dealer_long=0.1
     #dealer_short=0.075
-    run_steps=240
+    run_steps=120
     year=2016
         
     #bonds = [
