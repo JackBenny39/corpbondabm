@@ -7,7 +7,7 @@ from matplotlib import rc
 rc('font', **{'family': 'serif', 'serif': ['Cambria', 'Times New Roman']})
 
 from corpbondabm.bondmarket2017_r1 import BondMarket
-from corpbondabm.trader2017_r1 import MutualFund2, InsuranceCo, Dealer
+from corpbondabm.trader2017_r1 import MutualFund2, InsuranceCo, Dealer, HedgeFund
 
 TREYNOR_BOUNDS = (0.01, 0.0125)
 TREYNOR_FACTOR = 10000
@@ -32,10 +32,11 @@ class Charter(object):
     def __init__(self, market_name='bondmarket1', bonds=BONDS, d_special=D_SPECIAL,
                  mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.08, mm_target=0.05,
                  ic_name='i1', ic_bond=0.6, dealer_long=0.1, dealer_short=0.075, run_steps=252,
-                 year=2003):
+                 hf_name='h1', year=2003):
         self.bondmarket = self.make_market(market_name, year, bonds)
         self.mutualfund = self.make_mutual_fund(mm_name, mm_share, mm_lower, mm_upper, mm_target)
         self.insuranceco = self.make_insurance_co(ic_name, 1-mm_share, ic_bond, year)
+        self.hedgefund = self.make_hedge_fund(hf_name)
         self.dealers, self.dealers_dict = self.make_dealers(dealer_long, dealer_short, d_special)
         self.run_steps = run_steps
         self.seed_mutual_fund(PRIMER)
@@ -63,6 +64,7 @@ class Charter(object):
         return m1
         
     def make_insurance_co(self, name, share, bond_weight, year):
+        nominal_weights = self.bondmarket.compute_weights_from_nominal()
         bond_list = []
         portfolio = {}
         for bond in self.bondmarket.bonds:
@@ -70,8 +72,20 @@ class Charter(object):
             ic_bond = {'Name': bond['Name'], 'Nominal': share*bond['Nominal'], 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = ic_bond
-        i1 = InsuranceCo(name, 1-bond_weight, bond_list, portfolio, year)
+        i1 = InsuranceCo(name, 1-bond_weight, bond_list, portfolio, year, nominal_weights)
         return i1
+    
+    def make_hedge_fund(self, name):
+        nominal_weights = self.bondmarket.compute_weights_from_nominal()
+        bond_list = []
+        portfolio = {}
+        for bond in self.bondmarket.bonds:
+            bond_list.append(bond['Name'])
+            hf_bond = {'Name': bond['Name'], 'Nominal': 0, 'Maturity': bond['Maturity'],
+                       'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
+            portfolio[bond['Name']] = hf_bond
+        h1 = HedgeFund(name, bond_list, portfolio, nominal_weights, TREYNOR_BOUNDS)
+        return h1
     
     def make_dealer(self, name, special, long_limit, short_limit):
         bond_list = []
@@ -109,7 +123,7 @@ class Charter(object):
     def makefig(self):
         fig = plt.figure(figsize=(13,9))
         ax = fig.add_subplot(111)
-        ax.axis([PRIMER, self.run_steps, 65, 104])
+        ax.axis([PRIMER, self.run_steps, 80, 104])
         ax.set_xlabel('Date')
         ax.set_ylabel('Price')
         colors = ['DarkOrange', 'DarkBlue', 'DarkGreen', 'Chartreuse', 'DarkRed']
@@ -154,6 +168,9 @@ class Charter(object):
             prices = self.bondmarket.last_prices
             for d in self.dealers:
                 d.update_prices(prices)
+        bounds = self.hedgefund.make_bounds(prices)
+        for d in self.dealers:
+            d.update_bounds(bounds)
         return tuple(self.lines)
     
 
@@ -166,16 +183,17 @@ if __name__ == '__main__':
     
     #market_name = 'bondmarket1'
     #mutualfund_name = 'm1' 
-    mm_share = 0.65
+    mm_share = 0.35
     #mm_lower = 0.03
     #mm_upper = 0.08
     #mm_target = 0.05
-    #ic_name='i1'
-    #ic_bond=0.6
-    #dealer_long=0.1
-    #dealer_short=0.075
-    run_steps=100
-    year=2016
+    #ic_name = 'i1'
+    #ic_bond = 0.6
+    #hf_name = 'h1'
+    #dealer_long = 0.1
+    #dealer_short = 0.075
+    run_steps = 200
+    year = 2016
     
     #bonds = [
             #{'Name': 'MM101', 'Nominal': 500000, 'Maturity': 1, 'Coupon': 0.0175, 'Yield': 0.015, 'NPer': 2},

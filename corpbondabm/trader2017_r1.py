@@ -16,7 +16,7 @@ class BuySide(object):
     base class for buy side traders
     '''
     
-    def __init__(self, name, bond_list, portfolio):
+    def __init__(self, name, bond_list, portfolio, weights):
         '''
         Initialize BuySide with some base class attributes and a method
         
@@ -25,6 +25,7 @@ class BuySide(object):
         self._trader_id = name # trader id
         self.bond_list = bond_list
         self.portfolio = portfolio
+        self.index_weight_array = self.make_weight_array(weights)
         self.rfq_collector = []
         self._rfq_sequence = 0
         
@@ -44,6 +45,9 @@ class BuySide(object):
     def compute_portfolio_value(self):
         return np.sum([self.portfolio[x]['Nominal']*self.portfolio[x]['Price']/100 for x in self.bond_list])
     
+    def make_weight_array(self, weights):
+        return np.array([weights[x] for x in self.bond_list])
+    
         
 class MutualFund(BuySide):
     '''
@@ -57,14 +61,13 @@ class MutualFund(BuySide):
         
         
         '''
-        BuySide.__init__(self, name, bond_list, portfolio)
+        BuySide.__init__(self, name, bond_list, portfolio, weights)
         self.trader_type = 'MutualFund'
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
         self.target = target
         self.nav_history = {}
         self.shares = shares
-        self.index_weight_array = self.make_weight_array(weights)
         self.setup_portfolio()
         
     def __repr__(self):
@@ -74,9 +77,6 @@ class MutualFund(BuySide):
         bond_value = self.compute_portfolio_value()
         self.cash = self.target*bond_value/(1-self.target)
         self.add_nav_to_history(0)
-    
-    def make_weight_array(self, weights):
-        return np.array([weights[x] for x in self.bond_list])
     
     #def compute_weights_from_nominal(self):
         #nominals = np.array([self.portfolio[x]['Nominal'] for x in self.bond_list])
@@ -201,13 +201,13 @@ class InsuranceCo(BuySide):
         
         
     '''
-    def __init__(self, name, equity_weight_target, bond_list, portfolio, year):
+    def __init__(self, name, equity_weight_target, bond_list, portfolio, year, weights):
         '''
         Initialize InsuranceCo
         
         
         '''
-        BuySide.__init__(self, name, bond_list, portfolio)
+        BuySide.__init__(self, name, bond_list, portfolio, weights)
         self.trader_type = 'InsuranceCo'
         self.bond_weight_target = 1 - equity_weight_target
         self.equity_returns = self.make_equity_returns(year)
@@ -264,17 +264,28 @@ class HedgeFund(BuySide):
         
         
     '''
-    def __init__(self, name, bond_list, portfolio):
+    def __init__(self, name, bond_list, portfolio, weights, bounds):
         '''
         Initialize HedgeFund
         
         
         '''
-        BuySide.__init__(self, name, bond_list, portfolio)
+        BuySide.__init__(self, name, bond_list, portfolio, weights)
+        self.lower_bound, self.upper_bound = bounds
         self.trader_type = 'HedgeFund'
         
     def __repr__(self):
         return 'BuySide({0}, {1})'.format(self._trader_id, self.trader_type)
+    
+    def make_bounds(self, prices):
+        avg_ret = np.dot(np.array([prices[bond]/self.portfolio[bond]['Price'] - 1 for bond in self.bond_list]), self.index_weight_array)
+        self.update_prices(prices)
+        if np.abs(avg_ret) < 0.05:
+            return self.lower_bound, self.upper_bound
+        else:
+            return self.lower_bound*1.5, self.upper_bound*1.5
+    
+        
     
     
 class Dealer(object):
@@ -311,6 +322,9 @@ class Dealer(object):
     def update_prices(self, prices):
         for bond in self.bond_list:
             self.portfolio[bond]['Price'] = prices[bond]
+            
+    def update_bounds(self, bounds):
+        self.lower_bound, self.upper_bound = bounds
     
     def modify_portfolio(self, confirm):
         bond = confirm['Bond']

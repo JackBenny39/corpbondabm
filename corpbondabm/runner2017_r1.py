@@ -140,12 +140,12 @@ if __name__ == '__main__':
     #mm_lower = 0.03
     #mm_upper = 0.08
     #mm_target = 0.05
-    #ic_name='i1'
-    #ic_bond=0.6
-    #dealer_long=0.1
-    #dealer_short=0.075
-    run_steps=120
-    year=2016
+    #ic_name = 'i1'
+    #ic_bond = 0.6
+    #dealer_long = 0.1
+    #dealer_short = 0.075
+    run_steps = 120
+    year = 2016
         
     #bonds = [
             #{'Name': 'MM101', 'Nominal': 500000, 'Maturity': 1, 'Coupon': 0.0175, 'Yield': 0.015, 'NPer': 2},

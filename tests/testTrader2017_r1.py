@@ -38,12 +38,12 @@ class TestTrader(unittest.TestCase):
             ic_portfolio[bond['Name']] = ic_bond
             d_portfolio[bond['Name']] = d_bond
             
-        self.b1 = BuySide('b1', bond_list, mm_portfolio)
+        self.b1 = BuySide('b1', bond_list, mm_portfolio, index_weights)
         self.m1 = MutualFund('m1', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights, 100)
         self.m2 = MutualFund2('m2', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights, 100)
-        self.i1 = InsuranceCo('i1', IC_EQUITY, bond_list, ic_portfolio, 2003)
+        self.i1 = InsuranceCo('i1', IC_EQUITY, bond_list, ic_portfolio, 2003, index_weights)
 
-        self.h1 = HedgeFund('h1', bond_list, mm_portfolio) # use MF portfolio for now
+        self.h1 = HedgeFund('h1', bond_list, mm_portfolio, index_weights, TREYNOR_BOUNDS) # use MF portfolio for now
         
         self.d1 = Dealer('d1', bond_list, d_portfolio, 0.1, 0.075, TREYNOR_BOUNDS, TREYNOR_FACTOR)
         
@@ -233,6 +233,23 @@ class TestTrader(unittest.TestCase):
     # The Hedge Fund    
     def test_repr_HedgeFund(self):
         self.assertEqual('BuySide(h1, HedgeFund)', '{0}'.format(self.h1))
+        
+    def test_make_bounds(self):
+        factor = 1.01
+        prices = {'MM101': self.h1.portfolio['MM101']['Price']*factor, 'MM102': self.h1.portfolio['MM102']['Price']*factor, 
+                  'MM103': self.h1.portfolio['MM103']['Price']*factor, 'MM104': self.h1.portfolio['MM104']['Price']*factor, 
+                  'MM105': self.h1.portfolio['MM105']['Price']*factor}
+        self.assertEqual(self.h1.make_bounds(prices), TREYNOR_BOUNDS)
+        
+        factor = 1.05
+        lb, ub = TREYNOR_BOUNDS
+        lb*=1.5
+        ub*=1.5
+        prices = {'MM101': self.h1.portfolio['MM101']['Price']*factor, 'MM102': self.h1.portfolio['MM102']['Price']*factor, 
+                  'MM103': self.h1.portfolio['MM103']['Price']*factor, 'MM104': self.h1.portfolio['MM104']['Price']*(factor+.05), 
+                  'MM105': self.h1.portfolio['MM105']['Price']*(factor+.05)}
+        self.assertEqual(self.h1.make_bounds(prices), (lb, ub))
+
         
         
     # The Dealer   
