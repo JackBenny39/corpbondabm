@@ -32,14 +32,14 @@ class Charter(object):
     def __init__(self, market_name='bondmarket1', bonds=BONDS, d_special=D_SPECIAL,
                  mm_name='m1', mm_share=0.15, mm_lower=0.03, mm_upper=0.08, mm_target=0.05,
                  ic_name='i1', ic_bond=0.6, dealer_long=0.1, dealer_short=0.075, run_steps=252,
-                 hf_name='h1', year=2003):
+                 hf_name='h1', hf_bound_factor=2, year=2003):
         self.bondmarket = self.make_market(market_name, year, bonds)
         self.mutualfund = self.make_mutual_fund(mm_name, mm_share, mm_lower, mm_upper, mm_target)
         self.insuranceco = self.make_insurance_co(ic_name, 1-mm_share, ic_bond, year)
-        self.hedgefund = self.make_hedge_fund(hf_name)
+        self.hedgefund = self.make_hedge_fund(hf_name, hf_bound_factor)
         self.dealers, self.dealers_dict = self.make_dealers(dealer_long, dealer_short, d_special)
         self.run_steps = run_steps
-        self.seed_mutual_fund(PRIMER)
+        self.seed_funds(PRIMER)
         self.fig, self.ax, self.lines, = self.makefig()
         self.animate = animation.FuncAnimation(self.fig, self.run_mcs_chart, np.arange(PRIMER, self.run_steps, 1),
                                                init_func=self.setup_plot, interval=100, repeat=False, blit=True)
@@ -75,7 +75,7 @@ class Charter(object):
         i1 = InsuranceCo(name, 1-bond_weight, bond_list, portfolio, year, nominal_weights)
         return i1
     
-    def make_hedge_fund(self, name):
+    def make_hedge_fund(self, name, hf_bound_factor):
         nominal_weights = self.bondmarket.compute_weights_from_nominal()
         bond_list = []
         portfolio = {}
@@ -84,7 +84,7 @@ class Charter(object):
             hf_bond = {'Name': bond['Name'], 'Nominal': 0, 'Maturity': bond['Maturity'],
                        'Coupon': bond['Coupon'], 'Yield': bond['Yield'], 'Price': bond['Price']}
             portfolio[bond['Name']] = hf_bond
-        h1 = HedgeFund(name, bond_list, portfolio, nominal_weights, TREYNOR_BOUNDS)
+        h1 = HedgeFund(name, bond_list, portfolio, nominal_weights, TREYNOR_BOUNDS, hf_bound_factor)
         return h1
     
     def make_dealer(self, name, special, long_limit, short_limit):
@@ -107,10 +107,11 @@ class Charter(object):
         #return buyside
         return np.array([self.mutualfund])
 
-    def seed_mutual_fund(self, prime1):
+    def seed_funds(self, prime1):
         for current_date in range(prime1):
             self.mutualfund.update_prices(self.bondmarket.last_prices)
             self.mutualfund.add_nav_to_history(current_date)
+            self.hedgefund.compute_index(current_date, self.bondmarket.last_prices)
             
     def make_chart_data(self):
         temp_df = pd.DataFrame(self.bondmarket.price_history)
@@ -168,7 +169,7 @@ class Charter(object):
             prices = self.bondmarket.last_prices
             for d in self.dealers:
                 d.update_prices(prices)
-        bounds = self.hedgefund.make_bounds(prices)
+        bounds = self.hedgefund.make_bounds(j, prices)
         for d in self.dealers:
             d.update_bounds(bounds)
         return tuple(self.lines)
@@ -190,6 +191,7 @@ if __name__ == '__main__':
     #ic_name = 'i1'
     #ic_bond = 0.6
     #hf_name = 'h1'
+    hf_bound_factor=1.25
     #dealer_long = 0.1
     #dealer_short = 0.075
     run_steps = 200
@@ -210,7 +212,7 @@ if __name__ == '__main__':
                 #}
     
     # Chart output prices
-    market1 = Charter(mm_share=mm_share, run_steps=run_steps, year=year)
+    market1 = Charter(mm_share=mm_share, hf_bound_factor=hf_bound_factor, run_steps=run_steps, year=year)
     
 
 

@@ -264,26 +264,38 @@ class HedgeFund(BuySide):
         
         
     '''
-    def __init__(self, name, bond_list, portfolio, weights, bounds):
+    def __init__(self, name, bond_list, portfolio, weights, bounds, bound_factor):
         '''
         Initialize HedgeFund
         
         
         '''
         BuySide.__init__(self, name, bond_list, portfolio, weights)
-        self.lower_bound, self.upper_bound = bounds
         self.trader_type = 'HedgeFund'
+        self.lower_bound, self.upper_bound = bounds
+        self.bound_factor = bound_factor
+        self.index_value = {}
         
     def __repr__(self):
         return 'BuySide({0}, {1})'.format(self._trader_id, self.trader_type)
     
-    def make_bounds(self, prices):
-        avg_ret = np.dot(np.array([prices[bond]/self.portfolio[bond]['Price'] - 1 for bond in self.bond_list]), self.index_weight_array)
-        self.update_prices(prices)
-        if np.abs(avg_ret) < 0.05:
+    def compute_index(self, step, prices):
+        weighted_price = np.dot(np.array([prices[bond] for bond in self.bond_list]), self.index_weight_array)
+        wavg_ret = weighted_price/self.index_value[step-1]['Price'] - 1 if step > 1 else 0
+        self.index_value[step] = {'Price': weighted_price, 'Return': wavg_ret}
+    
+    def make_bounds(self, step, prices):
+        self.compute_index(step, prices)
+        if all(np.abs(self.index_value[x]['Return']) < 0.05 for x in range(step-4, step+1)):
             return self.lower_bound, self.upper_bound
         else:
-            return self.lower_bound*1.5, self.upper_bound*1.5
+            new_lower_bound = self.lower_bound
+            new_upper_bound = self.upper_bound
+            if any(self.index_value[x]['Return'] < -0.05 for x in range(step-4, step+1)):
+                new_lower_bound = self.lower_bound*self.bound_factor
+            if any(self.index_value[x]['Return'] > 0.05 for x in range(step-4, step+1)):
+                new_upper_bound = self.upper_bound*self.bound_factor
+            return new_lower_bound, new_upper_bound
     
         
     

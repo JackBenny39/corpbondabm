@@ -8,6 +8,7 @@ from corpbondabm.bondmarket2017_r1 import BondMarket
 MM_FRACTION = 0.15
 IC_EQUITY = 0.4
 TREYNOR_BOUNDS = (0.01, 0.0125)
+HF_BOUND_FACTOR = 4
 TREYNOR_FACTOR = 10
 
 
@@ -43,7 +44,7 @@ class TestTrader(unittest.TestCase):
         self.m2 = MutualFund2('m2', 0.03, 0.08, 0.05, bond_list, mm_portfolio, index_weights, 100)
         self.i1 = InsuranceCo('i1', IC_EQUITY, bond_list, ic_portfolio, 2003, index_weights)
 
-        self.h1 = HedgeFund('h1', bond_list, mm_portfolio, index_weights, TREYNOR_BOUNDS) # use MF portfolio for now
+        self.h1 = HedgeFund('h1', bond_list, mm_portfolio, index_weights, TREYNOR_BOUNDS, HF_BOUND_FACTOR) # use MF portfolio for now
         
         self.d1 = Dealer('d1', bond_list, d_portfolio, 0.1, 0.075, TREYNOR_BOUNDS, TREYNOR_FACTOR)
         
@@ -234,23 +235,51 @@ class TestTrader(unittest.TestCase):
     def test_repr_HedgeFund(self):
         self.assertEqual('BuySide(h1, HedgeFund)', '{0}'.format(self.h1))
         
+    def test_compute_index(self):
+        step = 1
+        prices = {'MM101': 100, 'MM102': 99, 'MM103': 98, 'MM104': 101, 'MM105': 102}
+        self.h1.compute_index(step, prices)
+        self.assertAlmostEqual(100.3, self.h1.index_value[step]['Price'], 1)
+        self.assertEqual(0, self.h1.index_value[step]['Return'])
+        step = 2
+        prices = {'MM101': 100, 'MM102': 99, 'MM103': 98, 'MM104': 103, 'MM105': 102}
+        self.h1.compute_index(step, prices)
+        self.assertAlmostEqual(101.1, self.h1.index_value[step]['Price'], 1)
+        self.assertAlmostEqual(0.007976, self.h1.index_value[step]['Return'], 6)
+        
     def test_make_bounds(self):
-        factor = 1.01
-        prices = {'MM101': self.h1.portfolio['MM101']['Price']*factor, 'MM102': self.h1.portfolio['MM102']['Price']*factor, 
-                  'MM103': self.h1.portfolio['MM103']['Price']*factor, 'MM104': self.h1.portfolio['MM104']['Price']*factor, 
-                  'MM105': self.h1.portfolio['MM105']['Price']*factor}
-        self.assertEqual(self.h1.make_bounds(prices), TREYNOR_BOUNDS)
-        
-        factor = 1.05
+        for j in range(10):
+            self.h1.index_value[j] = {'Price': 100.3, 'Return': 0}
+        # Past 5 returns less than 5%
+        step0 = 10
+        prices0 = {'MM101': 100, 'MM102': 99, 'MM103': 98, 'MM104': 101, 'MM105': 102}
+        factor = 1
+        self.assertEqual(self.h1.make_bounds(step0, prices0), (0.01, 0.0125))
+        # One of past 5 returns <= -5%
+        step1 = 11
+        prices1 = {'MM101': prices0['MM101']*(factor-0.05), 'MM102': prices0['MM102']*(factor-0.05), 
+                   'MM103': prices0['MM103']*(factor-0.05), 'MM104': prices0['MM104']*(factor-0.05), 
+                   'MM105': prices0['MM105']*(factor-0.05)}
         lb, ub = TREYNOR_BOUNDS
-        lb*=1.5
-        ub*=1.5
-        prices = {'MM101': self.h1.portfolio['MM101']['Price']*factor, 'MM102': self.h1.portfolio['MM102']['Price']*factor, 
-                  'MM103': self.h1.portfolio['MM103']['Price']*factor, 'MM104': self.h1.portfolio['MM104']['Price']*(factor+.05), 
-                  'MM105': self.h1.portfolio['MM105']['Price']*(factor+.05)}
-        self.assertEqual(self.h1.make_bounds(prices), (lb, ub))
-
-        
+        new_lb = lb*self.h1.bound_factor
+        self.assertEqual(self.h1.make_bounds(step1, prices1), (new_lb, ub))
+        # One of past 5 returns >= 5%
+        step1 = 11
+        prices1 = {'MM101': prices0['MM101']*(factor+0.05), 'MM102': prices0['MM102']*(factor+0.05), 
+                   'MM103': prices0['MM103']*(factor+0.05), 'MM104': prices0['MM104']*(factor+0.05), 
+                   'MM105': prices0['MM105']*(factor+0.05)}
+        lb, ub = TREYNOR_BOUNDS
+        new_ub = ub*self.h1.bound_factor
+        self.assertEqual(self.h1.make_bounds(step1, prices1), (lb, new_ub))
+        # One of past 5 returns >= 5% and one <= -5%
+        step2 = 12
+        prices2 = {'MM101': prices0['MM101']*(factor-0.05), 'MM102': prices0['MM102']*(factor-0.05), 
+                   'MM103': prices0['MM103']*(factor-0.05), 'MM104': prices0['MM104']*(factor-0.05), 
+                   'MM105': prices0['MM105']*(factor-0.05)}
+        lb, ub = TREYNOR_BOUNDS
+        new_lb = lb*self.h1.bound_factor
+        new_ub = ub*self.h1.bound_factor
+        self.assertEqual(self.h1.make_bounds(step2, prices2), (new_lb, new_ub))
         
     # The Dealer   
     def test_repr_Dealer(self):
